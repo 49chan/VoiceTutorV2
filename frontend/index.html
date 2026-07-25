@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>TutorDoc AI - Mobile Voice Tutor</title>
+    <meta name="description" content="AI-based mobile-first pronunciation assessment and text extraction tool.">
+    <!-- Google Font & FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="app-container">
+
+        <!-- ========================================== -->
+        <!-- SCREEN 1: LANDING VIEW (첫로그인화면.png Style) -->
+        <!-- ========================================== -->
+        <div class="screen-view" id="screen-landing">
+            <!-- Header Links -->
+            <header class="landing-header">
+                <button class="btn btn-tab-header" id="btn-board-open" onclick="toggleDrawer('board', true)">게시판</button>
+                <div class="header-right-btns">
+                    <button class="btn btn-tab-header" id="btn-tab-settings" onclick="toggleDrawer('settings', true)"><i class="fa-solid fa-gear"></i> 설정</button>
+                    <button class="btn btn-tab-header" id="btn-tab-login" onclick="toggleDrawer('login', true)"><i class="fa-solid fa-user-lock"></i> 로그인</button>
+                </div>
+            </header>
+
+            <!-- Slogan & Illustration -->
+            <main class="landing-body">
+                <h1 class="landing-slogan" id="landing-slogan-text">
+                    나만의 문서가 실시간<br>원어민 튜터가 되다
+                </h1>
+                
+                <div class="landing-image-container">
+                    <img src="images/tutor_doc_diagram.png" alt="TutorDoc AI Schema Illustration" class="landing-image" id="landing-schema-image">
+                </div>
+
+                <div class="landing-action-zone">
+                    <button class="btn btn-primary btn-start-app disabled" id="btn-landing-start-app" onclick="handleStartAppButtonClick()" disabled>
+                        시작하기 <i class="fa-solid fa-chevron-right"></i>
+                    </button>
+                </div>
+            </main>
+
+            <!-- Footer Branding -->
+            <footer class="landing-footer">
+                <div class="footer-logo">
+                    <i class="fa-solid fa-wave-square"></i> K-Coach <span>AI Business Japanese</span>
+                </div>
+            </footer>
+        </div>
+
+
+        <!-- ========================================== -->
+        <!-- SCREEN 2: PRACTICE VIEWER (메인기능화면.png Style) -->
+        <!-- ========================================== -->
+        <div class="screen-view hidden" id="screen-practice">
+            <!-- Top Function Header -->
+            <header class="practice-header">
+                <div class="header-action-row">
+                    <button class="btn btn-nav-func" id="btn-func-open-file" onclick="toggleDrawer('file-upload', true)"><i class="fa-solid fa-folder-open"></i> 파일열기</button>
+                    <button class="btn btn-nav-func" id="btn-func-extract" onclick="toggleDrawer('extract-pdf', true)"><i class="fa-solid fa-file-export"></i> 변환</button>
+                    <button class="btn btn-nav-func" id="btn-func-record" onclick="startMobileRecording()"><i class="fa-solid fa-microphone"></i> 녹음</button>
+                    <button class="btn btn-nav-func disabled" id="btn-func-stop" onclick="stopMobileRecording()" disabled><i class="fa-solid fa-stop"></i> 중지</button>
+                    <button class="btn btn-nav-func disabled" id="btn-func-evaluate" onclick="submitAssessment()" disabled><i class="fa-solid fa-square-poll-vertical"></i> 평가</button>
+                </div>
+                <div class="recording-status-indicator stopped" id="recording-status-indicator" title="녹음 상태 표시">
+                    <i class="fa-solid fa-stop" id="icon-recording-status"></i>
+                </div>
+            </header>
+
+            <!-- Main Reading & Highlights Area -->
+            <main class="practice-workspace">
+                <div class="practice-card">
+                    <!-- Filename Overlay Badge -->
+                    <div class="card-top-info">
+                        <span id="label-active-filename">수동낭독연습.txt</span>
+                        <div class="edit-toolbar">
+                            <button class="btn btn-icon-only" id="btn-edit-text-toggle" onclick="toggleTextEditMode()" title="텍스트 수동 편집">
+                                <i class="fa-solid fa-pen-to-square" id="icon-edit-toggle"></i>
+                            </button>
+                            <button class="btn btn-icon-only hidden" id="btn-save-edited-text" onclick="saveEditedText()" title="텍스트 파일로 저장">
+                                <i class="fa-solid fa-floppy-disk"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Highlighted Text Display (Viewer Mode) -->
+                    <div class="reading-pane-body" id="text-highlight-viewer">
+                        <span class="placeholder-text">
+                            [파일열기] 또는 [변환]으로 연습할 교재를 로드하거나, 우측 상단 편집 연필 아이콘을 클릭해 직접 문장을 입력해 주세요.
+                        </span>
+                    </div>
+
+                    <!-- Text Input Area (Edit Mode) -->
+                    <textarea id="raw-text-editor" class="reading-pane-editor hidden" placeholder="수작업으로 텍스트를 수정할 수 있습니다." oninput="updateWordCounters()"></textarea>
+
+                    <div class="card-footer-info">
+                        <span id="char-counter-text">글자수: 0</span>
+                        <span id="recording-timer-countdown" class="timer-warning hidden"><i class="fa-regular fa-clock"></i> 2:00</span>
+                    </div>
+                </div>
+            </main>
+
+            <!-- Bottom Row details (Feedback and overall score) -->
+            <section class="practice-bottom-row">
+                <!-- Feedback reports -->
+                <div class="bottom-feedback-box">
+                    <div class="bottom-box-title">종합 피드백 리포트</div>
+                    <div class="bottom-box-content" id="stat-summary-feedback">
+                        평가를 진행하시면 이곳에 오발음 분석 리포트가 표시됩니다.
+                    </div>
+                </div>
+
+                <!-- Big Score -->
+                <div class="bottom-score-box">
+                    <div class="overall-circle-score" id="stat-overall-score">
+                        --
+                    </div>
+                </div>
+            </section>
+
+            <!-- Bottom Settings / Exit Footer -->
+            <footer class="practice-footer">
+                <button class="btn btn-footer-nav" id="btn-footer-settings" onclick="toggleDrawer('settings', true)">
+                    <i class="fa-solid fa-cog"></i> 설정
+                </button>
+                
+                <div class="status-indicator-dots">
+                    <span id="dot-mic-status" class="dot dot-gray" title="마이크 대기"></span>
+                    <span id="dot-sheets-status" class="dot dot-gray" title="구글시트 대기"></span>
+                </div>
+
+                <button class="btn btn-footer-nav" id="btn-footer-exit" onclick="exitPracticeRoom()">
+                    종료 <i class="fa-solid fa-door-open"></i>
+                </button>
+            </footer>
+
+            <!-- Hidden Audio Player element -->
+            <audio id="evaluation-audio-player" style="display: none;"></audio>
+        </div>
+
+
+        <!-- ========================================== -->
+        <!-- DRAWERS & DIALOG OVERLAYS (Mobile-optimized) -->
+        <!-- ========================================== -->
+        
+        <!-- Drawer 1: 게시판 (BOARD DRAWER) -->
+        <div class="drawer-overlay hidden" id="drawer-board">
+            <div class="drawer-card">
+                <header class="drawer-header">
+                    <h3><i class="fa-solid fa-clipboard-list"></i> 사용자 만족도 게시판</h3>
+                    <button class="btn-close-drawer" onclick="toggleDrawer('board', false)">&times;</button>
+                </header>
+                <div class="drawer-body">
+                    <table class="board-table">
+                        <thead>
+                            <tr>
+                                <th>사용자 ID</th>
+                                <th>평점</th>
+                                <th>한줄소감</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>user_jp_09</td>
+                                <td>⭐⭐⭐⭐⭐</td>
+                                <td>일본어 촉음, 장음 발음 길이 교정에 최고입니다!</td>
+                            </tr>
+                            <tr>
+                                <td>voice_eng_tutor</td>
+                                <td>⭐⭐⭐⭐⭐</td>
+                                <td>연속 낭독 시 억양 차트를 볼 수 있어서 만족스럽네요.</td>
+                            </tr>
+                            <tr>
+                                <td>korean_leaner</td>
+                                <td>⭐⭐⭐⭐★</td>
+                                <td>구글 시트에 이력이 바로 들어가니 과제 제출용으로 아주 편합니다.</td>
+                            </tr>
+                            <tr>
+                                <td>shirakawa_01</td>
+                                <td>⭐⭐⭐⭐⭐</td>
+                                <td>단어 클릭하면 구간만 딱 들리는 플레이어가 정말 편리해요!</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Drawer 2: 로그인 (LOGIN DRAWER) -->
+        <div class="drawer-overlay hidden" id="drawer-login">
+            <div class="drawer-card">
+                <header class="drawer-header">
+                    <h3><i class="fa-solid fa-user-lock"></i> 서비스 로그인</h3>
+                    <button class="btn-close-drawer" onclick="toggleDrawer('login', false)">&times;</button>
+                </header>
+                <div class="drawer-body">
+                    <div class="form-group">
+                        <label class="form-label" for="login-email-input">이메일 주소</label>
+                        <input type="email" id="login-email-input" class="form-input" placeholder="example@domain.com">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">앱 사용 만족도 평점</label>
+                        <div style="display: flex; align-items: center; gap: 15px; margin-top: 10px;">
+                            <input type="range" id="satisfaction-slider" min="1" max="5" value="5" style="flex: 1;" oninput="document.getElementById('slider-value-lbl').textContent = this.value + ' 점'">
+                            <span id="slider-value-lbl" style="font-weight: 700; color: var(--color-primary); font-size: 1.1rem; width: 45px;">5 점</span>
+                        </div>
+                    </div>
+                    <div class="stats-grid" style="grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 20px;">
+                        <button class="btn btn-primary" id="btn-login-submit" onclick="submitGoogleLogin()">로그인</button>
+                        <button class="btn disabled" disabled>평점 등록</button>
+                    </div>
+                    <p style="font-size: 0.75rem; color: var(--text-muted); text-align: center; margin-top: 15px;">※ 등록된 구글 계정이 틀릴 경우, 보안을 위해 저장된 모든 API 연동 Key가 즉시 초기화됩니다.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Drawer 3: 파일열기 (FILE UPLOAD DRAWER) -->
+        <div class="drawer-overlay hidden" id="drawer-file-upload">
+            <div class="drawer-card">
+                <header class="drawer-header">
+                    <h3><i class="fa-solid fa-folder-open"></i> 연습 파일 불러오기</h3>
+                    <button class="btn-close-drawer" onclick="toggleDrawer('file-upload', false)">&times;</button>
+                </header>
+                <div class="drawer-body">
+                    <div class="upload-dropzone" onclick="document.getElementById('file-upload-input').click()">
+                        <i class="fa-solid fa-file-arrow-up"></i>
+                        <p id="label-file-upload-placeholder">WAV, TXT, JSON, PDF 업로드</p>
+                        <input type="file" id="file-upload-input" accept=".txt,.json,.pdf" style="display: none" onchange="handleFileImport(this)">
+                    </div>
+                    <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 15px; line-height: 1.4;">
+                        - <strong>.txt</strong>: 텍스트를 불러와 신규 연습 녹음 대기 상태로 전환합니다.<br>
+                        - <strong>.json</strong>: 과거 평가 이력(컬러 텍스트, 점수, 피드백 및 녹음 오디오)을 화면에 복원합니다.<br>
+                        - <strong>.pdf</strong>: PDF 파일의 특정 페이지 문자 추출 모드를 실행합니다.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Drawer 4: PDF 페이지 추출 (PDF EXTRACT DRAWER) -->
+        <div class="drawer-overlay hidden" id="drawer-extract-pdf">
+            <div class="drawer-card">
+                <header class="drawer-header">
+                    <h3><i class="fa-solid fa-file-pdf"></i> PDF 페이지 추출</h3>
+                    <button class="btn-close-drawer" onclick="toggleDrawer('extract-pdf', false)">&times;</button>
+                </header>
+                <div class="drawer-body">
+                    <div class="form-group">
+                        <label class="form-label">현재 파일: <span id="label-pdf-active" style="color: var(--color-primary)">파일 없음</span></label>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="pdf-page-selector-input">추출할 페이지 번호</label>
+                        <input type="number" id="pdf-page-selector-input" class="form-input" min="1" value="1">
+                    </div>
+                    <button class="btn btn-primary" id="btn-run-extraction" onclick="runPdfPageExtraction()" style="width: 100%; margin-top: 10px;">
+                        페이지 문자 추출 <i class="fa-solid fa-wand-magic"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Drawer 5: 설정 (SETTINGS DRAWER) -->
+        <div class="drawer-overlay hidden" id="drawer-settings">
+            <div class="drawer-card" style="max-height: 90vh;">
+                <header class="drawer-header">
+                    <h3><i class="fa-solid fa-cog"></i> 기기 설정 및 API Key</h3>
+                    <button class="btn-close-drawer" onclick="toggleDrawer('settings', false)">&times;</button>
+                </header>
+                <div class="drawer-body" style="overflow-y: auto;">
+                    <!-- Device Hardware Controls -->
+                    <div class="form-group" style="display: flex; flex-direction: column; background: rgba(255,255,255,0.02); padding: 12px; border-radius: 8px; border: 1px solid var(--border-light); gap: 8px;">
+                        <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                            <label class="form-label" for="setting-mic-toggle" style="margin-bottom: 0;">마이크 하드웨어 사용 여부 (테스트)</label>
+                            <input type="checkbox" id="setting-mic-toggle" onchange="toggleMicTest()" style="width: 20px; height: 20px; accent-color: var(--color-primary);">
+                        </div>
+                        <div style="font-size: 0.8rem; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 6px;">
+                            <span style="color: var(--text-muted);">작동 및 음성 감지 상태:</span>
+                            <strong id="mic-test-status" style="color: var(--text-muted); font-weight: 700;">대기 중</strong>
+                        </div>
+                    </div>
+
+                    <!-- API Keys -->
+                    <div class="form-group">
+                        <label class="form-label" for="setting-azure-key">Azure Speech API Key</label>
+                        <input type="password" id="setting-azure-key" class="form-input" placeholder="Azure API Key 입력">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="setting-azure-region">Azure Speech Region</label>
+                        <input type="text" id="setting-azure-region" class="form-input" placeholder="예: eastus, koreacentral">
+                    </div>
+                    <div style="margin-top: -10px; margin-bottom: 20px;">
+                        <button class="btn btn-sm" id="btn-test-azure" onclick="testAzureConnection()"><i class="fa-solid fa-circle-check"></i> Azure 테스트</button>
+                        <span id="azure-test-status" style="margin-left: 10px; font-size: 0.75rem; font-weight: 500;"></span>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="setting-ocr-key">Google Vision OCR Key</label>
+                        <input type="password" id="setting-ocr-key" class="form-input" placeholder="Google OCR API Key">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="setting-sheet-webhook">Google Sheets Webhook URL</label>
+                        <input type="text" id="setting-sheet-webhook" class="form-input" placeholder="구글 앱스 스크립트 웹훅 주소">
+                    </div>
+                    <div style="margin-top: -10px; margin-bottom: 20px;">
+                        <button class="btn btn-sm" id="btn-test-sheet" onclick="testSheetsConnection()"><i class="fa-solid fa-table-list"></i> 시트 웹훅 테스트</button>
+                        <span id="sheet-test-status" style="margin-left: 10px; font-size: 0.75rem; font-weight: 500;"></span>
+                    </div>
+
+                    <!-- Paths configuration -->
+                    <div class="form-group">
+                        <label class="form-label" for="setting-auth-email">로그인 승인 구글 이메일</label>
+                        <input type="email" id="setting-auth-email" class="form-input" placeholder="예: owner@gmail.com">
+                    </div>
+
+                    <!-- Paths configuration -->
+                    <div class="form-group">
+                        <label class="form-label" for="setting-learning-lang">학습 언어 설정</label>
+                        <select id="setting-learning-lang" class="form-input" style="background-color: var(--bg-secondary)">
+                            <option value="ja-JP">일본어 (ja-JP)</option>
+                            <option value="en-US">영어 (en-US)</option>
+                            <option value="ko-KR">한국어 (ko-KR)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="setting-storage-path">로컬 파일 (.txt, .json, .mp3) 저장 위치</label>
+                        <input type="text" id="setting-storage-path" class="form-input" placeholder="디스크 기본 recordings 폴더 저장">
+                    </div>
+
+                    <button class="btn btn-primary" id="btn-save-settings" onclick="saveAppSettings()" style="width: 100%; margin-top: 15px;">
+                        설정 암호화 저장 <i class="fa-solid fa-floppy-disk"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Inject scripts -->
+    <script src="js/recorder.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>

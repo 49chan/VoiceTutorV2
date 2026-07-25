@@ -1,0 +1,11 @@
+__pycache__/
+backend/__pycache__/
+backend/temp/
+recordings/
+backend/settings.json
+.DS_Store
+*.log
+*.wav
+*.mp3
+.secret.key
+backend/.secret.key
