@@ -206,7 +206,7 @@ async function saveAppSettings() {
         }
     } catch (err) {
         console.error("Save settings error:", err);
-        alert("서버 연결 실패");
+        alert(`❌ 서버 연결 실패\n\n지정한 API 주소(${BACKEND_URL})에 백엔드가 구동 중인지, 또는 PC의 로컬 서버가 켜져 있는지 확인해 주세요.`);
     }
 }
 
