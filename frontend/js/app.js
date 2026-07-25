@@ -125,12 +125,17 @@ async function loadAppSettings() {
             document.getElementById("setting-ocr-key").value = settings.google_vision_ocr_key || "";
             document.getElementById("setting-sheet-webhook").value = settings.google_sheets_webhook_url || "";
             document.getElementById("setting-auth-email").value = settings.authorized_email || "";
+            document.getElementById("setting-google-client-id").value = settings.google_client_id || "";
+            document.getElementById("setting-drive-folder").value = settings.google_drive_folder_id || "";
             document.getElementById("setting-backend-url").value = BACKEND_URL;
             document.getElementById("setting-learning-lang").value = settings.learning_language || "ja-JP";
             document.getElementById("setting-storage-path").value = settings.local_storage_path || "";
             
             // Update status dots indicators
             updateStatusDots();
+            
+            // Initialize Google Sign-In button if Client ID exists
+            initGoogleSignIn();
             
             // Warn if required API settings are empty when practice view is active
             if (activeView === "practice" && (!settings.azure_speech_key || !settings.azure_speech_region || !settings.google_sheets_webhook_url || !settings.authorized_email)) {
@@ -176,6 +181,8 @@ async function saveAppSettings() {
     settings.google_vision_ocr_key = document.getElementById("setting-ocr-key").value.trim();
     settings.google_sheets_webhook_url = document.getElementById("setting-sheet-webhook").value.trim();
     settings.authorized_email = document.getElementById("setting-auth-email").value.trim();
+    settings.google_client_id = document.getElementById("setting-google-client-id").value.trim();
+    settings.google_drive_folder_id = document.getElementById("setting-drive-folder").value.trim();
     
     const inputBackendUrl = document.getElementById("setting-backend-url").value.trim();
     if (inputBackendUrl) {
@@ -1124,6 +1131,114 @@ function logoutGoogleUser() {
     }
     
     alert("로그아웃 되었습니다.");
+}
+
+function initGoogleSignIn() {
+    const btnContainer = document.getElementById("google-signin-button");
+    if (!btnContainer) return;
+    
+    // Clear previous button
+    btnContainer.innerHTML = "";
+    
+    if (!settings || !settings.google_client_id) {
+        console.log("No Google Client ID set; native sign-in button skipped.");
+        btnContainer.innerHTML = "<p style='font-size: 0.8rem; color: var(--text-muted); text-align: center;'>[설정]에서 Google Client ID를 등록해 주세요.</p>";
+        return;
+    }
+    
+    if (typeof google === "undefined" || !google.accounts) {
+        console.warn("Google client SDK not loaded yet. Retrying in 1s...");
+        setTimeout(initGoogleSignIn, 1000);
+        return;
+    }
+    
+    try {
+        google.accounts.id.initialize({
+            client_id: settings.google_client_id,
+            callback: handleCredentialResponse
+        });
+        google.accounts.id.renderButton(
+            btnContainer,
+            { theme: "outline", size: "large", width: 280 }
+        );
+    } catch (e) {
+        console.error("Failed to initialize Google Sign-In SDK:", e);
+    }
+}
+
+function handleCredentialResponse(response) {
+    try {
+        const token = response.credential;
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function(c) {
+            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(''));
+        
+        const payload = JSON.parse(jsonPayload);
+        console.log("Google Social Login verified email:", payload.email);
+        
+        submitGoogleLoginWithVerifiedEmail(payload.email);
+    } catch (err) {
+        console.error("Failed to parse Google JWT token:", err);
+        alert("구글 로그인 토큰 해독 중 에러가 발생했습니다.");
+    }
+}
+
+async function submitGoogleLoginWithVerifiedEmail(email) {
+    const btn = document.getElementById("btn-login-submit");
+    const originalText = btn.innerHTML;
+    btn.innerHTML = "<i class='fa-solid fa-spinner fa-spin'></i>";
+    btn.disabled = true;
+    
+    try {
+        const response = await fetch(`${BACKEND_URL}/api/login`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email: email })
+        });
+        
+        if (response.ok) {
+            alert(`구글 계정 인증 성공: ${email}`);
+            isLoggedIn = true;
+            
+            const startBtn = document.getElementById("btn-landing-start-app");
+            if (startBtn) {
+                startBtn.classList.remove("disabled");
+                startBtn.disabled = false;
+            }
+            
+            sessionStorage.setItem("userEmail", email);
+            sessionStorage.setItem("isLoggedIn", "true");
+            toggleDrawer('login', false);
+            
+            const loginBtn = document.getElementById("btn-tab-login");
+            if (loginBtn) {
+                loginBtn.innerHTML = "<i class='fa-solid fa-user-check'></i> 로그아웃";
+                loginBtn.onclick = logoutGoogleUser;
+            }
+        } else {
+            const res = await response.json();
+            alert(`❌ 로그인 실패: ${res.message || "미승인 구글 계정"}`);
+            
+            isLoggedIn = false;
+            sessionStorage.removeItem("isLoggedIn");
+            sessionStorage.removeItem("userEmail");
+            
+            const startBtn = document.getElementById("btn-landing-start-app");
+            if (startBtn) {
+                startBtn.classList.add("disabled");
+                startBtn.disabled = true;
+            }
+            loadAppSettings();
+        }
+    } catch (err) {
+        console.error("Google login net error:", err);
+        alert("서버 연결 실패. 네트워크 연결 상태를 확인해 주세요.");
+    } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    }
 }
 
 

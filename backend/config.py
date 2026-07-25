@@ -15,6 +15,8 @@ class AppSettings(BaseModel):
     azure_speech_region: Optional[str] = ""
     google_vision_ocr_key: Optional[str] = ""
     google_sheets_webhook_url: Optional[str] = ""
+    google_client_id: Optional[str] = ""
+    google_drive_folder_id: Optional[str] = ""
     learning_language: str = "ja-JP"
     local_storage_path: Optional[str] = ""
     authorized_email: str = "yqhah@gmail.com"
@@ -44,6 +46,8 @@ def load_settings() -> AppSettings:
             azure_speech_region=decrypt_value(data.get("azure_speech_region", "")),
             google_vision_ocr_key=decrypt_value(data.get("google_vision_ocr_key", "")),
             google_sheets_webhook_url=decrypt_value(data.get("google_sheets_webhook_url", "")),
+            google_client_id=data.get("google_client_id", ""),
+            google_drive_folder_id=decrypt_value(data.get("google_drive_folder_id", "")),
             learning_language=data.get("learning_language", "ja-JP"),
             local_storage_path=storage_path,
             authorized_email=data.get("authorized_email", "yqhah@gmail.com")
@@ -62,6 +66,8 @@ def save_settings(settings: AppSettings) -> bool:
             "azure_speech_region": encrypt_value(settings.azure_speech_region),
             "google_vision_ocr_key": encrypt_value(settings.google_vision_ocr_key),
             "google_sheets_webhook_url": encrypt_value(settings.google_sheets_webhook_url),
+            "google_client_id": settings.google_client_id,
+            "google_drive_folder_id": encrypt_value(settings.google_drive_folder_id),
             "learning_language": settings.learning_language,
             "local_storage_path": os.path.abspath(storage_path),
             "authorized_email": settings.authorized_email

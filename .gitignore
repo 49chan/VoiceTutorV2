@@ -9,3 +9,5 @@ backend/settings.json
 *.mp3
 .secret.key
 backend/.secret.key
+*google_drive_key.json
+*key.json

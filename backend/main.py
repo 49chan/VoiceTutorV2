@@ -156,6 +156,20 @@ def api_save_text(req: SaveTextRequest):
         with open(target_path, "w", encoding="utf-8") as f:
             f.write(req.text)
         logger.info(f"Edited text successfully saved to: {target_path}")
+        
+        # Upload .txt to Google Drive if folder ID configured
+        if settings.google_drive_folder_id:
+            try:
+                from backend.google_drive import upload_file_to_drive
+                upload_file_to_drive(
+                    file_content=req.text.encode("utf-8"),
+                    filename=target_filename,
+                    mime_type="text/plain",
+                    folder_id=settings.google_drive_folder_id
+                )
+            except Exception as ex:
+                logger.error(f"Failed to auto-upload txt to Google Drive: {ex}")
+                
         return {"status": "success", "file_name": target_filename}
     except Exception as e:
         logger.error(f"Failed to save text file: {e}")
@@ -199,6 +213,8 @@ def api_get_settings():
         s.google_sheets_webhook_url = "********"
     if s.authorized_email:
         s.authorized_email = "********"
+    if s.google_drive_folder_id:
+        s.google_drive_folder_id = "********"
     return s
 
 @app.post("/api/settings")
@@ -214,6 +230,8 @@ def api_save_settings(settings: AppSettings):
         settings.google_sheets_webhook_url = existing.google_sheets_webhook_url
     if settings.authorized_email == "********":
         settings.authorized_email = existing.authorized_email
+    if settings.google_drive_folder_id == "********":
+        settings.google_drive_folder_id = existing.google_drive_folder_id
         
     success = save_settings(settings)
     if not success:
@@ -275,6 +293,36 @@ async def api_extract_page(
         # Cleanup temp file
         if os.path.exists(temp_pdf_path):
             os.remove(temp_pdf_path)
+
+def upload_eval_assets_to_drive(settings, payload, out_json_name, out_mp3_path, out_mp3_name):
+    """Background task to upload pronunciation report JSON and recording MP3 to Google Drive."""
+    if not settings.google_drive_folder_id:
+        return
+    try:
+        import json
+        from backend.google_drive import upload_file_to_drive
+        
+        # 1. Upload JSON report
+        json_data = json.dumps(payload, ensure_ascii=False, indent=2).encode("utf-8")
+        upload_file_to_drive(
+            file_content=json_data,
+            filename=out_json_name,
+            mime_type="application/json",
+            folder_id=settings.google_drive_folder_id
+        )
+        
+        # 2. Upload MP3 audio file
+        if os.path.exists(out_mp3_path):
+            with open(out_mp3_path, "rb") as f:
+                mp3_data = f.read()
+            upload_file_to_drive(
+                file_content=mp3_data,
+                filename=out_mp3_name,
+                mime_type="audio/mpeg",
+                folder_id=settings.google_drive_folder_id
+            )
+    except Exception as e:
+        logger.error(f"Background Google Drive asset upload failed: {e}")
 
 @app.post("/api/evaluate")
 async def api_evaluate(
@@ -373,6 +421,18 @@ async def api_evaluate(
         # Write JSON Log
         with open(out_json_path, "w", encoding="utf-8") as f:
             json.dump(payload, f, ensure_ascii=False, indent=2)
+            
+        # Queue Background Task for Google Drive uploads
+        if settings.google_drive_folder_id:
+            logger.info("Scheduling Google Drive assets upload background task.")
+            background_tasks.add_task(
+                upload_eval_assets_to_drive,
+                settings,
+                payload,
+                out_json_name,
+                out_mp3_path,
+                out_mp3_name
+            )
             
         # 5. Queue Background Webhook Task for Google Sheets Row Insertion
         if settings.google_sheets_webhook_url:
