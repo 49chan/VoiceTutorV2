@@ -1,0 +1,22 @@
+# Tasks
+
+- [x] Backend updates
+    - [x] Create `/api/save-text` endpoint in `backend/main.py`
+    - [x] Verify backend unit tests and endpoints pass
+- [x] Frontend HTML structure overhaul
+    - [x] Update `frontend/index.html` to separate Landing View and Practice View
+    - [x] Add Board ("게시판") modal with mock reviews list
+    - [x] Add Login ("로그인") modal with email form and satisfaction rating slider
+    - [x] Add drawers/modals for Settings, File Select (upload .txt/.json/.pdf), and PDF page extraction selector
+- [x] Frontend CSS mobile-first styling
+    - [x] Update `frontend/css/style.css` with media queries for phone widths
+    - [x] Set up layout matching `첫로그인화면.png` and `메인기능화면.png`
+    - [x] Add styling for Board, Login, and Settings drawer overlays
+- [x] Frontend JS controller implementation
+    - [x] Implement Landing-to-Practice and Exit-to-Landing view routes in `frontend/js/app.js`
+    - [x] Handle file uploading for `.txt` (new practice) and `.json` (restore evaluation & scores)
+    - [x] Implement edited text save function (triggering backend `/api/save-text`)
+    - [x] Integrate 2-minute (120 seconds) recording auto-stop limit
+    - [x] Bind Mic toggle checkbox in settings to enable/disable recorder constraints
+- [x] Verification & Demo
+    - [x] Verify full mobile responsive workflow manually and document in walkthrough
