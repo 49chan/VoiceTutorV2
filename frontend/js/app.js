@@ -1,4 +1,4 @@
-const BACKEND_URL = "http://127.0.0.1:8000";
+let BACKEND_URL = localStorage.getItem("backend_url") || (window.location.origin.includes("vercel.app") ? "http://127.0.0.1:8000" : window.location.origin);
 
 // App Globals
 let activeView = "landing"; // "landing" or "practice"
@@ -125,6 +125,7 @@ async function loadAppSettings() {
             document.getElementById("setting-ocr-key").value = settings.google_vision_ocr_key || "";
             document.getElementById("setting-sheet-webhook").value = settings.google_sheets_webhook_url || "";
             document.getElementById("setting-auth-email").value = settings.authorized_email || "";
+            document.getElementById("setting-backend-url").value = BACKEND_URL;
             document.getElementById("setting-learning-lang").value = settings.learning_language || "ja-JP";
             document.getElementById("setting-storage-path").value = settings.local_storage_path || "";
             
@@ -175,6 +176,13 @@ async function saveAppSettings() {
     settings.google_vision_ocr_key = document.getElementById("setting-ocr-key").value.trim();
     settings.google_sheets_webhook_url = document.getElementById("setting-sheet-webhook").value.trim();
     settings.authorized_email = document.getElementById("setting-auth-email").value.trim();
+    
+    const inputBackendUrl = document.getElementById("setting-backend-url").value.trim();
+    if (inputBackendUrl) {
+        BACKEND_URL = inputBackendUrl;
+        localStorage.setItem("backend_url", inputBackendUrl);
+    }
+    
     settings.learning_language = document.getElementById("setting-learning-lang").value;
     settings.local_storage_path = document.getElementById("setting-storage-path").value.trim();
     
