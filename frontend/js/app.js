@@ -616,7 +616,7 @@ async function runPdfPageExtraction() {
         }
     } catch (err) {
         console.error("PDF page extraction exception:", err);
-        alert(`❌ 서버 연결 실패\n\n백엔드 서버 구동 여부 또는 네트워크를 확인하세요. (대용량 PDF 파일의 경우 업로드 제한이나 전송 시간 초과가 발생했을 수 있습니다.)`);
+        alert(`❌ 클라이언트 오류 발생:\n${err.message || err}\n\n(상세 내용: ${err.stack ? err.stack.split('\n')[0] : ''})`);
     } finally {
         btn.innerHTML = "페이지 문자 추출 <i class='fa-solid fa-wand-magic'></i>";
         btn.disabled = false;
