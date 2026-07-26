@@ -41,8 +41,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Temp files directory
-TEMP_DIR = os.path.join(os.path.dirname(__file__), "temp")
+# Temp files directory - use /tmp on Vercel or read-only filesystems
+if os.environ.get("VERCEL") or not os.access(os.path.dirname(os.path.abspath(__file__)), os.W_OK):
+    TEMP_DIR = "/tmp/tutor_doc_temp"
+else:
+    TEMP_DIR = os.path.join(os.path.dirname(__file__), "temp")
 os.makedirs(TEMP_DIR, exist_ok=True)
 
 # -----------------
