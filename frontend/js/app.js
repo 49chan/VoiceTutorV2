@@ -1,4 +1,4 @@
-let BACKEND_URL = localStorage.getItem("backend_url") || (window.location.origin.includes("vercel.app") ? "http://127.0.0.1:8000" : window.location.origin);
+let BACKEND_URL = localStorage.getItem("backend_url") || window.location.origin;
 
 // App Globals
 let activeView = "landing"; // "landing" or "practice"

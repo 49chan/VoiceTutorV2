@@ -1,3 +1,4 @@
+# FastAPI Entrypoint for Vercel deployment
 import os
 import json
 import wave
