@@ -28,8 +28,15 @@ def get_default_storage_path() -> str:
     os.makedirs(recordings_dir, exist_ok=True)
     return os.path.abspath(recordings_dir)
 
+# In-memory settings cache to support session persistence on stateless/read-only cloud environments like Vercel
+_cached_settings = None
+
 def load_settings() -> AppSettings:
     """Loads configuration and decrypts keys. Returns default config on failure."""
+    global _cached_settings
+    if _cached_settings is not None:
+        return _cached_settings
+        
     default_path = get_default_storage_path()
     
     # 1. Initialize with default model values
@@ -81,6 +88,8 @@ def load_settings() -> AppSettings:
 
 def save_settings(settings: AppSettings) -> bool:
     """Encrypts keys and saves the configuration to settings.json. Gracefully bypasses on read-only environments."""
+    global _cached_settings
+    _cached_settings = settings
     try:
         storage_path = settings.local_storage_path or get_default_storage_path()
         

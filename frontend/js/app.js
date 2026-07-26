@@ -125,7 +125,7 @@ async function loadAppSettings() {
             document.getElementById("setting-ocr-key").value = settings.google_vision_ocr_key || "";
             document.getElementById("setting-sheet-webhook").value = settings.google_sheets_webhook_url || "";
             document.getElementById("setting-auth-email").value = settings.authorized_email || "";
-            document.getElementById("setting-google-client-id").value = settings.google_client_id || "1002872040060-3kanq6f85c13vnclvs0tpg1gv6hb4b69.apps.googleusercontent.com";
+            document.getElementById("setting-google-client-id").value = settings.google_client_id || "";
             document.getElementById("setting-drive-folder").value = settings.google_drive_folder_id || "";
             document.getElementById("setting-backend-url").value = BACKEND_URL;
             document.getElementById("setting-learning-lang").value = settings.learning_language || "ja-JP";
@@ -211,6 +211,8 @@ async function saveAppSettings() {
             alert("설정이 로컬 저장소에 암호화 보관되었습니다!");
             updateStatusDots();
             toggleDrawer('settings', false);
+            // Reload settings to update the frontend state and re-render the Google button
+            loadAppSettings();
         } else {
             alert("설정 저장에 실패했습니다.");
         }
@@ -1090,7 +1092,7 @@ function initGoogleSignIn() {
     // Clear previous button
     btnContainer.innerHTML = "";
     
-    const clientID = (settings && settings.google_client_id) ? settings.google_client_id : "1002872040060-3kanq6f85c13vnclvs0tpg1gv6hb4b69.apps.googleusercontent.com";
+    const clientID = settings ? settings.google_client_id : "";
     if (!clientID) {
         console.log("No Google Client ID set; native sign-in button skipped.");
         btnContainer.innerHTML = "<p style='font-size: 0.8rem; color: var(--text-muted); text-align: center;'>[설정]에서 Google Client ID를 등록해 주세요.</p>";
