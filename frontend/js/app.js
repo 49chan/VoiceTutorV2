@@ -1061,73 +1061,7 @@ function handleStartAppButtonClick() {
     enterPracticeRoom();
 }
 
-async function submitGoogleLogin() {
-    const emailInput = document.getElementById("login-email-input").value.trim();
-    if (!emailInput) {
-        alert("구글 이메일 주소를 입력해 주세요!");
-        return;
-    }
-    
-    const btn = document.getElementById("btn-login-submit");
-    btn.innerHTML = "<i class='fa-solid fa-spinner fa-spin'></i>";
-    btn.disabled = true;
-    
-    try {
-        const response = await fetch(`${BACKEND_URL}/api/login`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email: emailInput })
-        });
-        
-        if (response.ok) {
-            alert("로그인에 성공하였습니다! 시작하기 버튼이 활성화됩니다.");
-            isLoggedIn = true;
-            
-            // Enable 시작하기 button on landing page
-            const startBtn = document.getElementById("btn-landing-start-app");
-            if (startBtn) {
-                startBtn.classList.remove("disabled");
-                startBtn.disabled = false;
-            }
-            
-            // Save login state in sessionStorage
-            sessionStorage.setItem("userEmail", emailInput);
-            sessionStorage.setItem("isLoggedIn", "true");
-            
-            // Close Login drawer
-            toggleDrawer('login', false);
-            
-            // Change header login button to "로그아웃"
-            const loginBtn = document.getElementById("btn-tab-login");
-            if (loginBtn) {
-                loginBtn.innerHTML = "<i class='fa-solid fa-user-check'></i> 로그아웃";
-                loginBtn.onclick = logoutGoogleUser;
-            }
-        } else {
-            const res = await response.json();
-            alert(`❌ 로그인 실패: ${res.message || "인증 실패"}\n\n*보안 위협 방지를 위해 시스템 저장소에 보관된 모든 API 연동 Key가 강제 초기화되었습니다!*`);
-            
-            isLoggedIn = false;
-            sessionStorage.removeItem("isLoggedIn");
-            sessionStorage.removeItem("userEmail");
-            
-            const startBtn = document.getElementById("btn-landing-start-app");
-            if (startBtn) {
-                startBtn.classList.add("disabled");
-                startBtn.disabled = true;
-            }
-            
-            // Reload settings to populate the wiped config fields in Settings drawer
-            loadAppSettings();
-        }
-    } catch (err) {
-        console.error("Login net error:", err);
-        alert("서버 연결 실패. 네트워크 연결 상태를 확인해 주세요.");
-    } finally {
-        btn.innerHTML = "로그인";
-        btn.disabled = false;
-    }
-}
+
 
 function logoutGoogleUser() {
     sessionStorage.removeItem("isLoggedIn");
@@ -1203,9 +1137,11 @@ function handleCredentialResponse(response) {
 
 async function submitGoogleLoginWithVerifiedEmail(email) {
     const btn = document.getElementById("btn-login-submit");
-    const originalText = btn.innerHTML;
-    btn.innerHTML = "<i class='fa-solid fa-spinner fa-spin'></i>";
-    btn.disabled = true;
+    const originalText = btn ? btn.innerHTML : "";
+    if (btn) {
+        btn.innerHTML = "<i class='fa-solid fa-spinner fa-spin'></i>";
+        btn.disabled = true;
+    }
     
     try {
         const response = await fetch(`${BACKEND_URL}/api/login`, {
@@ -1252,8 +1188,10 @@ async function submitGoogleLoginWithVerifiedEmail(email) {
         console.error("Google login net error:", err);
         alert("서버 연결 실패. 네트워크 연결 상태를 확인해 주세요.");
     } finally {
-        btn.innerHTML = originalText;
-        btn.disabled = false;
+        if (btn) {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }
     }
 }
 
