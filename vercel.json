@@ -1,11 +1,6 @@
 {
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/index.py" },
+    { "source": "/api/(.*)", "destination": "/api/main.py" },
     { "source": "/(.*)", "destination": "/frontend/$1" }
-  ],
-  "functions": {
-    "api/index.py": {
-      "includeFiles": "backend/**"
-    }
-  }
+  ]
 }
