@@ -1195,4 +1195,70 @@ async function submitGoogleLoginWithVerifiedEmail(email) {
     }
 }
 
+async function submitDeveloperManualLogin() {
+    const emailInput = document.getElementById("login-email-input").value.trim();
+    if (!emailInput) {
+        alert("구글 이메일 주소를 직접 입력해 주세요!");
+        return;
+    }
+    
+    const btn = document.getElementById("btn-login-submit");
+    const originalText = btn ? btn.innerHTML : "";
+    if (btn) {
+        btn.innerHTML = "<i class='fa-solid fa-spinner fa-spin'></i>";
+        btn.disabled = true;
+    }
+    
+    try {
+        const response = await fetch(`${BACKEND_URL}/api/login`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email: emailInput })
+        });
+        
+        if (response.ok) {
+            alert(`[개발자 테스트 로그인 성공]: ${emailInput}`);
+            isLoggedIn = true;
+            
+            const startBtn = document.getElementById("btn-landing-start-app");
+            if (startBtn) {
+                startBtn.classList.remove("disabled");
+                startBtn.disabled = false;
+            }
+            
+            sessionStorage.setItem("userEmail", emailInput);
+            sessionStorage.setItem("isLoggedIn", "true");
+            toggleDrawer('login', false);
+            
+            const loginBtn = document.getElementById("btn-tab-login");
+            if (loginBtn) {
+                loginBtn.innerHTML = "<i class='fa-solid fa-user-check'></i> 로그아웃";
+                loginBtn.onclick = logoutGoogleUser;
+            }
+        } else {
+            const res = await response.json();
+            alert(`❌ 로그인 실패: ${res.message || "미승인 계정"}\n\n*보안 위협 방지를 위해 시스템 저장소에 보관된 모든 API 연동 Key가 강제 초기화되었습니다!*`);
+            
+            isLoggedIn = false;
+            sessionStorage.removeItem("isLoggedIn");
+            sessionStorage.removeItem("userEmail");
+            
+            const startBtn = document.getElementById("btn-landing-start-app");
+            if (startBtn) {
+                startBtn.classList.add("disabled");
+                startBtn.disabled = true;
+            }
+            loadAppSettings();
+        }
+    } catch (err) {
+        console.error("Manual login net error:", err);
+        alert("서버 연결 실패. 네트워크 연결 상태를 확인해 주세요.");
+    } finally {
+        if (btn) {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }
+    }
+}
+
 

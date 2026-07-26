@@ -197,17 +197,27 @@
                     <h3><i class="fa-solid fa-user-lock"></i> 서비스 로그인</h3>
                     <button class="btn-close-drawer" onclick="toggleDrawer('login', false)">&times;</button>
                 </header>
-                <div class="drawer-body" style="display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 20px; padding: 30px 20px;">
-                    <i class="fa-brands fa-google" style="font-size: 3rem; color: var(--color-primary); margin-bottom: 10px; animation: pulse 2s infinite;"></i>
-                    <h4 style="font-weight: 700; color: var(--text-normal); font-size: 1.1rem; margin: 0;">구글 계정으로 시작하기</h4>
-                    <p style="font-size: 0.85rem; color: var(--text-muted); line-height: 1.5; margin: 0; max-width: 280px;">
-                        본 서비스는 승인된 구글 계정으로만 이용하실 수 있습니다. 아래 버튼을 눌러 연동할 구글 계정을 선택해 주세요.
-                    </p>
+                <div class="drawer-body" style="display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 15px; padding: 25px 20px;">
+                    <i class="fa-brands fa-google" style="font-size: 2.5rem; color: var(--color-primary); margin-bottom: 5px;"></i>
+                    <h4 style="font-weight: 700; color: var(--text-normal); font-size: 1.05rem; margin: 0;">구글 계정으로 시작하기</h4>
                     
                     <!-- Google Sign-In Native Button Container -->
-                    <div id="google-signin-button" style="width: 100%; display: flex; justify-content: center; margin-top: 10px;"></div>
+                    <div id="google-signin-button" style="width: 100%; display: flex; justify-content: center; margin-top: 5px; min-height: 40px;"></div>
                     
-                    <p style="font-size: 0.72rem; color: var(--text-muted); max-width: 260px; line-height: 1.4; margin-top: 15px;">
+                    <!-- Divider -->
+                    <div style="display: flex; align-items: center; width: 100%; margin: 10px 0; gap: 10px;">
+                        <div style="flex: 1; height: 1px; background: rgba(255,255,255,0.08);"></div>
+                        <span style="font-size: 0.65rem; color: var(--text-muted); font-weight: 600;">테스트 옵션</span>
+                        <div style="flex: 1; height: 1px; background: rgba(255,255,255,0.08);"></div>
+                    </div>
+
+                    <!-- Developer direct email fallback (Unblocks testing when Google Client ID is missing) -->
+                    <div id="dev-login-section" style="width: 100%; display: flex; flex-direction: column; gap: 8px;">
+                        <input type="email" id="login-email-input" class="form-input" placeholder="이메일 직접 입력 (개발용)" style="font-size: 0.85rem; padding: 8px 12px; height: 36px; text-align: center;">
+                        <button class="btn btn-primary" id="btn-login-submit" onclick="submitDeveloperManualLogin()" style="font-size: 0.85rem; height: 36px; padding: 0;">직접 입력 로그인 (테스트용)</button>
+                    </div>
+
+                    <p style="font-size: 0.72rem; color: var(--text-muted); max-width: 260px; line-height: 1.4; margin-top: 10px;">
                         ※ 승인되지 않은 구글 계정으로 로그인 시, 보안을 위해 저장된 모든 API 연동 Key가 즉시 초기화되니 주의하시기 바랍니다.
                     </p>
                 </div>
