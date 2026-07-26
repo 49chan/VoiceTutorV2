@@ -264,8 +264,12 @@ async def api_extract_page(
         with open(temp_pdf_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
             
+        file_size = os.path.getsize(temp_pdf_path)
+        logger.info(f"Received PDF upload '{file.filename}' - size: {file_size} bytes")
+            
         reader = PdfReader(temp_pdf_path)
         total_pages = len(reader.pages)
+        logger.info(f"PDF parsed successfully. Total pages counted by pypdf: {total_pages}")
         
         if page_number < 1 or page_number > total_pages:
             raise HTTPException(
