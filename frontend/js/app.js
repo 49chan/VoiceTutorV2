@@ -188,6 +188,9 @@ async function saveAppSettings() {
     if (inputBackendUrl) {
         BACKEND_URL = inputBackendUrl;
         localStorage.setItem("backend_url", inputBackendUrl);
+    } else {
+        BACKEND_URL = window.location.origin;
+        localStorage.removeItem("backend_url");
     }
     
     settings.learning_language = document.getElementById("setting-learning-lang").value;

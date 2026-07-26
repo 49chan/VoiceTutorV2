@@ -3,7 +3,8 @@ import json
 import random
 import logging
 import httpx
-import azure.cognitiveservices.speech as speechsdk
+# Lazy loaded module to avoid serverless startup crashes due to missing C++ shared libraries
+speechsdk = None
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +42,10 @@ def run_pronunciation_assessment(
     Performs continuous pronunciation assessment on a saved WAV audio file.
     Aggregates results from multiple recognized chunks.
     """
+    global speechsdk
+    if speechsdk is None:
+        import azure.cognitiveservices.speech as speechsdk
+        
     # Initialize Azure Speech Config
     speech_config = speechsdk.SpeechConfig(subscription=subscription_key, region=region)
     speech_config.output_format = speechsdk.OutputFormat.Detailed
