@@ -211,8 +211,6 @@ def api_get_settings():
         s.google_vision_ocr_key = "********"
     if s.google_sheets_webhook_url:
         s.google_sheets_webhook_url = "********"
-    if s.authorized_email:
-        s.authorized_email = "********"
     if s.google_drive_folder_id:
         s.google_drive_folder_id = "********"
     return s
@@ -228,8 +226,6 @@ def api_save_settings(settings: AppSettings):
         settings.google_vision_ocr_key = existing.google_vision_ocr_key
     if settings.google_sheets_webhook_url == "********":
         settings.google_sheets_webhook_url = existing.google_sheets_webhook_url
-    if settings.authorized_email == "********":
-        settings.authorized_email = existing.authorized_email
     if settings.google_drive_folder_id == "********":
         settings.google_drive_folder_id = existing.google_drive_folder_id
         
