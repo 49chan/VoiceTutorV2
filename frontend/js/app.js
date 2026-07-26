@@ -214,7 +214,8 @@ async function saveAppSettings() {
             // Reload settings to update the frontend state and re-render the Google button
             loadAppSettings();
         } else {
-            alert("설정 저장에 실패했습니다.");
+            const errText = await response.text();
+            alert(`❌ 설정 저장 실패 (서버 오류):\n${errText}`);
         }
     } catch (err) {
         console.error("Save settings error:", err);
