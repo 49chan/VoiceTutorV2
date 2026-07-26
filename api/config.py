@@ -27,8 +27,22 @@ class AppSettings(BaseModel):
 def get_default_storage_path() -> str:
     """Gets the default directory to save assessment JSONs and audio MP3s."""
     parent_dir = os.path.dirname(os.path.dirname(__file__))
-    recordings_dir = os.path.join(parent_dir, "recordings")
-    os.makedirs(recordings_dir, exist_ok=True)
+    
+    # Check if running on Vercel or read-only filesystem
+    if os.environ.get("VERCEL") or not os.access(parent_dir, os.W_OK):
+        recordings_dir = "/tmp/tutor_doc_recordings"
+    else:
+        recordings_dir = os.path.join(parent_dir, "recordings")
+        
+    try:
+        os.makedirs(recordings_dir, exist_ok=True)
+    except (PermissionError, OSError):
+        recordings_dir = "/tmp/tutor_doc_recordings"
+        try:
+            os.makedirs(recordings_dir, exist_ok=True)
+        except Exception:
+            pass
+            
     return os.path.abspath(recordings_dir)
 
 # In-memory settings cache to support session persistence on stateless/read-only cloud environments like Vercel
