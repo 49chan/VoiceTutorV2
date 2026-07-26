@@ -592,12 +592,25 @@ async function runPdfPageExtraction() {
             toggleDrawer('extract-pdf', false);
             alert(`PDF p.${pageNum} 문자 추출이 정상 완료되었습니다!\n텍스트에 오류가 있다면 수정하실 수 있습니다.`);
         } else {
-            const err = await response.json();
-            alert(`문자 추출 실패: ${err.detail || "오류"}`);
+            let errorMsg = "알 수 없는 오류";
+            try {
+                const err = await response.json();
+                errorMsg = err.detail || err.message || "오류";
+            } catch (jsonErr) {
+                try {
+                    errorMsg = await response.text();
+                    if (errorMsg.length > 150) {
+                        errorMsg = errorMsg.substring(0, 150) + "...";
+                    }
+                } catch (textErr) {
+                    errorMsg = `HTTP 상태 코드: ${response.status} ${response.statusText}`;
+                }
+            }
+            alert(`❌ 문자 추출 실패: ${errorMsg}`);
         }
     } catch (err) {
         console.error("PDF page extraction exception:", err);
-        alert("서버 연결 실패");
+        alert(`❌ 서버 연결 실패\n\n백엔드 서버 구동 여부 또는 네트워크를 확인하세요. (대용량 PDF 파일의 경우 업로드 제한이나 전송 시간 초과가 발생했을 수 있습니다.)`);
     } finally {
         btn.innerHTML = "페이지 문자 추출 <i class='fa-solid fa-wand-magic'></i>";
         btn.disabled = false;
