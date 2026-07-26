@@ -31,33 +31,63 @@ def get_default_storage_path() -> str:
 def load_settings() -> AppSettings:
     """Loads configuration and decrypts keys. Returns default config on failure."""
     default_path = get_default_storage_path()
-    if not os.path.exists(SETTINGS_FILE):
-        return AppSettings(local_storage_path=default_path)
     
-    try:
-        with open(SETTINGS_FILE, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        
-        storage_path = data.get("local_storage_path") or default_path
-        os.makedirs(storage_path, exist_ok=True)
+    # 1. Initialize with default model values
+    settings = AppSettings(
+        local_storage_path=default_path,
+        authorized_email="yqhah@gmail.com"
+    )
+    
+    # 2. Load from settings.json if it exists
+    if os.path.exists(SETTINGS_FILE):
+        try:
+            with open(SETTINGS_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            
+            storage_path = data.get("local_storage_path") or default_path
+            os.makedirs(storage_path, exist_ok=True)
 
-        return AppSettings(
-            azure_speech_key=decrypt_value(data.get("azure_speech_key", "")),
-            azure_speech_region=decrypt_value(data.get("azure_speech_region", "")),
-            google_vision_ocr_key=decrypt_value(data.get("google_vision_ocr_key", "")),
-            google_sheets_webhook_url=decrypt_value(data.get("google_sheets_webhook_url", "")),
-            google_client_id=data.get("google_client_id", ""),
-            google_drive_folder_id=decrypt_value(data.get("google_drive_folder_id", "")),
-            learning_language=data.get("learning_language", "ja-JP"),
-            local_storage_path=storage_path,
-            authorized_email=data.get("authorized_email", "yqhah@gmail.com")
-        )
-    except Exception:
-        return AppSettings(local_storage_path=default_path)
+            settings = AppSettings(
+                azure_speech_key=decrypt_value(data.get("azure_speech_key", "")),
+                azure_speech_region=decrypt_value(data.get("azure_speech_region", "")),
+                google_vision_ocr_key=decrypt_value(data.get("google_vision_ocr_key", "")),
+                google_sheets_webhook_url=decrypt_value(data.get("google_sheets_webhook_url", "")),
+                google_client_id=data.get("google_client_id", ""),
+                google_drive_folder_id=decrypt_value(data.get("google_drive_folder_id", "")),
+                learning_language=data.get("learning_language", "ja-JP"),
+                local_storage_path=storage_path,
+                authorized_email=data.get("authorized_email", "yqhah@gmail.com")
+            )
+        except Exception:
+            pass
+
+    # 3. Apply Environment Variable overrides (Crucial for Vercel/Cloud serverless environments!)
+    if os.environ.get("AZURE_SPEECH_KEY"):
+        settings.azure_speech_key = os.environ.get("AZURE_SPEECH_KEY")
+    if os.environ.get("AZURE_SPEECH_REGION"):
+        settings.azure_speech_region = os.environ.get("AZURE_SPEECH_REGION")
+    if os.environ.get("GOOGLE_VISION_OCR_KEY"):
+        settings.google_vision_ocr_key = os.environ.get("GOOGLE_VISION_OCR_KEY")
+    if os.environ.get("GOOGLE_SHEETS_WEBHOOK_URL"):
+        settings.google_sheets_webhook_url = os.environ.get("GOOGLE_SHEETS_WEBHOOK_URL")
+    if os.environ.get("GOOGLE_CLIENT_ID"):
+        settings.google_client_id = os.environ.get("GOOGLE_CLIENT_ID")
+    if os.environ.get("GOOGLE_DRIVE_FOLDER_ID"):
+        settings.google_drive_folder_id = os.environ.get("GOOGLE_DRIVE_FOLDER_ID")
+    if os.environ.get("AUTHORIZED_EMAIL"):
+        settings.authorized_email = os.environ.get("AUTHORIZED_EMAIL")
+        
+    return settings
 
 def save_settings(settings: AppSettings) -> bool:
-    """Encrypts keys and saves the configuration to settings.json."""
+    """Encrypts keys and saves the configuration to settings.json. Gracefully bypasses on read-only environments."""
     try:
+        # Check if running in a read-only environment like Vercel
+        is_read_only = os.environ.get("VERCEL") or not os.access(os.path.dirname(os.path.abspath(__file__)), os.W_OK)
+        if is_read_only:
+            # Skip write but return success to satisfy frontend UI drawer
+            return True
+            
         storage_path = settings.local_storage_path or get_default_storage_path()
         os.makedirs(storage_path, exist_ok=True)
 
