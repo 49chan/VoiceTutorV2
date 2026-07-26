@@ -441,28 +441,55 @@ async def api_evaluate(
             
         # Queue Background Task for Google Drive uploads
         if settings.google_drive_folder_id:
-            logger.info("Scheduling Google Drive assets upload background task.")
-            background_tasks.add_task(
-                upload_eval_assets_to_drive,
-                settings,
-                payload,
-                out_json_name,
-                out_mp3_path,
-                out_mp3_name
-            )
+            if os.environ.get("VERCEL"):
+                logger.info("Running Google Drive assets upload inline (Vercel serverless environment).")
+                try:
+                    upload_eval_assets_to_drive(
+                        settings,
+                        payload,
+                        out_json_name,
+                        out_mp3_path,
+                        out_mp3_name
+                    )
+                except Exception as ex:
+                    logger.error(f"Inline Google Drive upload failed: {ex}")
+            else:
+                logger.info("Scheduling Google Drive assets upload background task.")
+                background_tasks.add_task(
+                    upload_eval_assets_to_drive,
+                    settings,
+                    payload,
+                    out_json_name,
+                    out_mp3_path,
+                    out_mp3_name
+                )
             
         # 5. Queue Background Webhook Task for Google Sheets Row Insertion
         if settings.google_sheets_webhook_url:
-            logger.info("Scheduling Google Sheets Append background task.")
-            background_tasks.add_task(
-                append_evaluation_row,
-                settings.google_sheets_webhook_url,
-                file_name,
-                version_int,
-                overall_score,
-                created_at_str,
-                feedback
-            )
+            if os.environ.get("VERCEL"):
+                logger.info("Awaiting Google Sheets Append inline (Vercel serverless environment).")
+                try:
+                    await append_evaluation_row(
+                        settings.google_sheets_webhook_url,
+                        file_name,
+                        version_int,
+                        overall_score,
+                        created_at_str,
+                        feedback
+                    )
+                except Exception as ex:
+                    logger.error(f"Inline Google Sheets append failed: {ex}")
+            else:
+                logger.info("Scheduling Google Sheets Append background task.")
+                background_tasks.add_task(
+                    append_evaluation_row,
+                    settings.google_sheets_webhook_url,
+                    file_name,
+                    version_int,
+                    overall_score,
+                    created_at_str,
+                    feedback
+                )
             
         return payload
         
