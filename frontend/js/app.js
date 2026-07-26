@@ -449,7 +449,8 @@ function resetEvaluationDisplay() {
     
     const player = document.getElementById("evaluation-audio-player");
     player.src = "";
-    document.getElementById("icon-playback-state").className = "fa-solid fa-circle-play";
+    const playbackIcon = document.getElementById("icon-playback-state");
+    if (playbackIcon) playbackIcon.className = "fa-solid fa-circle-play";
     
     recordedWavBlob = null;
     currentAudioUrl = null;
@@ -921,10 +922,10 @@ function toggleGlobalAudio() {
     if (player.paused) {
         wordPlaybackStopTime = null; // Clear word stop
         player.play();
-        icon.className = "fa-solid fa-circle-pause";
+        if (icon) icon.className = "fa-solid fa-circle-pause";
     } else {
         player.pause();
-        icon.className = "fa-solid fa-circle-play";
+        if (icon) icon.className = "fa-solid fa-circle-play";
     }
 }
 
@@ -937,22 +938,22 @@ function initAudioPlayerEvents() {
         if (wordPlaybackStopTime !== null && player.currentTime >= wordPlaybackStopTime) {
             player.pause();
             wordPlaybackStopTime = null;
-            icon.className = "fa-solid fa-circle-play";
+            if (icon) icon.className = "fa-solid fa-circle-play";
         }
     });
 
     player.addEventListener("play", () => {
         if (wordPlaybackStopTime === null) {
-            icon.className = "fa-solid fa-circle-pause";
+            if (icon) icon.className = "fa-solid fa-circle-pause";
         }
     });
 
     player.addEventListener("pause", () => {
-        icon.className = "fa-solid fa-circle-play";
+        if (icon) icon.className = "fa-solid fa-circle-play";
     });
 
     player.addEventListener("ended", () => {
-        icon.className = "fa-solid fa-circle-play";
+        if (icon) icon.className = "fa-solid fa-circle-play";
         wordPlaybackStopTime = null;
     });
     
