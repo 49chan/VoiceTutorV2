@@ -11,17 +11,24 @@ from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
 
 try:
-    from backend.config import load_settings, save_settings, AppSettings, get_default_storage_path
-    from backend.text_normalizer import clean_text
-    from backend.security import encrypt_value
-    from backend.google_sheets import test_sheet_connection, append_evaluation_row
-    from backend.azure_speech import test_azure_connection, run_pronunciation_assessment, run_mock_assessment
+    from api.config import load_settings, save_settings, AppSettings, get_default_storage_path
+    from api.text_normalizer import clean_text
+    from api.security import encrypt_value
+    from api.google_sheets import test_sheet_connection, append_evaluation_row
+    from api.azure_speech import test_azure_connection, run_pronunciation_assessment, run_mock_assessment
 except ImportError:
-    from config import load_settings, save_settings, AppSettings, get_default_storage_path
-    from text_normalizer import clean_text
-    from security import encrypt_value
-    from google_sheets import test_sheet_connection, append_evaluation_row
-    from azure_speech import test_azure_connection, run_pronunciation_assessment, run_mock_assessment
+    try:
+        from backend.config import load_settings, save_settings, AppSettings, get_default_storage_path
+        from backend.text_normalizer import clean_text
+        from backend.security import encrypt_value
+        from backend.google_sheets import test_sheet_connection, append_evaluation_row
+        from backend.azure_speech import test_azure_connection, run_pronunciation_assessment, run_mock_assessment
+    except ImportError:
+        from config import load_settings, save_settings, AppSettings, get_default_storage_path
+        from text_normalizer import clean_text
+        from security import encrypt_value
+        from google_sheets import test_sheet_connection, append_evaluation_row
+        from azure_speech import test_azure_connection, run_pronunciation_assessment, run_mock_assessment
 
 import lameenc
 from pypdf import PdfReader

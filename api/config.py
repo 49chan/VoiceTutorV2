@@ -4,9 +4,12 @@ from pydantic import BaseModel
 from typing import Optional
 
 try:
-    from backend.security import encrypt_value, decrypt_value
+    from api.security import encrypt_value, decrypt_value
 except ImportError:
-    from security import encrypt_value, decrypt_value
+    try:
+        from backend.security import encrypt_value, decrypt_value
+    except ImportError:
+        from security import encrypt_value, decrypt_value
 
 SETTINGS_FILE = os.path.join(os.path.dirname(__file__), "settings.json")
 
