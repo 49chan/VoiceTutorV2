@@ -47,33 +47,64 @@ def test_security_encryption():
 def test_config_operations():
     print("[TEST] Running Configuration operations tests...")
     
-    # Save a test setting
-    test_storage = os.path.join(get_default_storage_path(), "test_folder")
-    settings = AppSettings(
-        azure_speech_key="test_azure_key",
-        azure_speech_region="eastus",
-        google_vision_ocr_key="test_ocr_key",
-        google_sheets_webhook_url="https://webhook.google.com/test",
-        learning_language="ja-JP",
-        local_storage_path=test_storage
-    )
+    # Save original env vars
+    orig_env = {
+        "AZURE_SPEECH_KEY": os.environ.get("AZURE_SPEECH_KEY"),
+        "AZURE_SPEECH_REGION": os.environ.get("AZURE_SPEECH_REGION"),
+        "GOOGLE_VISION_OCR_KEY": os.environ.get("GOOGLE_VISION_OCR_KEY"),
+        "GOOGLE_SHEETS_WEBHOOK_URL": os.environ.get("GOOGLE_SHEETS_WEBHOOK_URL")
+    }
     
-    save_success = save_settings(settings)
-    assert save_success, "Failed to save settings."
+    # Set mock env vars for testing load behavior
+    os.environ["AZURE_SPEECH_KEY"] = "test_azure_key"
+    os.environ["AZURE_SPEECH_REGION"] = "eastus"
+    os.environ["GOOGLE_VISION_OCR_KEY"] = "test_ocr_key"
+    os.environ["GOOGLE_SHEETS_WEBHOOK_URL"] = "https://webhook.google.com/test"
     
-    loaded = load_settings()
-    assert loaded.azure_speech_key == "test_azure_key", "Azure Key mismatch"
-    assert loaded.azure_speech_region == "eastus", "Azure Region mismatch"
-    assert loaded.google_vision_ocr_key == "test_ocr_key", "Google OCR Key mismatch"
-    assert loaded.google_sheets_webhook_url == "https://webhook.google.com/test", "Webhook URL mismatch"
-    assert loaded.learning_language == "ja-JP", "Language mismatch"
-    assert os.path.abspath(loaded.local_storage_path) == os.path.abspath(test_storage), f"Storage path mismatch: Loaded={loaded.local_storage_path}, Expected={test_storage}"
+    # Reset cache to force reload from mocked env
+    import config
+    config._cached_settings = None
     
-    # Cleanup settings test file
-    settings_file = os.path.join(os.path.dirname(__file__), "settings.json")
-    if os.path.exists(settings_file):
-        os.remove(settings_file)
+    try:
+        # Save a test setting
+        test_storage = os.path.join(get_default_storage_path(), "test_folder")
+        settings = AppSettings(
+            azure_speech_key="test_azure_key",
+            azure_speech_region="eastus",
+            google_vision_ocr_key="test_ocr_key",
+            google_sheets_webhook_url="https://webhook.google.com/test",
+            learning_language="ja-JP",
+            local_storage_path=test_storage
+        )
         
+        save_success = save_settings(settings)
+        assert save_success, "Failed to save settings."
+        
+        loaded = load_settings()
+        assert loaded.azure_speech_key == "test_azure_key", "Azure Key mismatch"
+        assert loaded.azure_speech_region == "eastus", "Azure Region mismatch"
+        assert loaded.google_vision_ocr_key == "test_ocr_key", "Google OCR Key mismatch"
+        assert loaded.google_sheets_webhook_url == "https://webhook.google.com/test", "Webhook URL mismatch"
+        assert loaded.learning_language == "ja-JP", "Language mismatch"
+        assert os.path.abspath(loaded.local_storage_path) == os.path.abspath(test_storage), f"Storage path mismatch: Loaded={loaded.local_storage_path}, Expected={test_storage}"
+        assert loaded.has_azure_speech is True, "has_azure_speech flag mismatch"
+        assert loaded.has_google_sheets is True, "has_google_sheets flag mismatch"
+        
+    finally:
+        # Restore original env vars
+        for k, v in orig_env.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+        # Reset cache again
+        config._cached_settings = None
+        
+        # Cleanup settings test file
+        settings_file = os.path.join(os.path.dirname(__file__), "settings.json")
+        if os.path.exists(settings_file):
+            os.remove(settings_file)
+            
     print("[SUCCESS] Configuration operations tests passed!")
 
 def test_mock_pronunciation_assessment():

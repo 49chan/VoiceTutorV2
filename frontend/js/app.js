@@ -1,4 +1,6 @@
 let BACKEND_URL = localStorage.getItem("backend_url") || window.location.origin;
+// Supabase Client Global Instance
+let supabaseClient = null;
 
 // App Globals
 let activeView = "landing"; // "landing" or "practice"
@@ -24,43 +26,104 @@ let recorder = new AudioRecorder();
 
 // Settings schema
 let settings = {
-    azure_speech_key: "",
-    azure_speech_region: "",
-    google_vision_ocr_key: "",
-    google_sheets_webhook_url: "",
     learning_language: "ja-JP",
-    local_storage_path: ""
+    local_storage_path: "",
+    has_azure_speech: false,
+    has_google_sheets: false
 };
 
 // Initial setup
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
     loadAppSettings();
     initAudioPlayerEvents();
     
-    // Restore login state from session storage
+    // Initialize Supabase Client
+    await initSupabase();
+    
+    // Update Login UI based on session
+    updateLoginUI();
+});
+
+async function initSupabase() {
+    try {
+        const response = await fetch(`${BACKEND_URL}/api/supabase-config`);
+        if (response.ok) {
+            const config = await response.json();
+            if (config.supabase_url && config.supabase_key) {
+                supabaseClient = supabase.createClient(config.supabase_url, config.supabase_key);
+                console.log("Supabase Client initialized successfully.");
+            } else {
+                console.warn("Supabase configuration keys are empty.");
+            }
+        } else {
+            console.error("Failed to fetch Supabase config from API.");
+        }
+    } catch (err) {
+        console.error("Error during Supabase initialization:", err);
+    }
+}
+
+function updateLoginUI() {
     const isSessionLoggedIn = sessionStorage.getItem("isLoggedIn") === "true";
     const userEmail = sessionStorage.getItem("userEmail");
+    const userName = sessionStorage.getItem("userName");
+    const userAvatar = sessionStorage.getItem("userAvatar");
+    
+    const startBtn = document.getElementById("btn-landing-start-app");
+    const loginBtn = document.getElementById("btn-tab-login");
+    const profileHeader = document.getElementById("user-profile-header");
+    const avatarImg = document.getElementById("user-avatar");
+    const nameSpan = document.getElementById("user-name");
+    const emailSpan = document.getElementById("user-email");
+    
     if (isSessionLoggedIn && userEmail) {
         isLoggedIn = true;
-        const startBtn = document.getElementById("btn-landing-start-app");
+        
+        // Enable Start App Button
         if (startBtn) {
             startBtn.classList.remove("disabled");
             startBtn.disabled = false;
         }
         
-        const loginBtn = document.getElementById("btn-tab-login");
+        // Update Login/Logout Button
         if (loginBtn) {
             loginBtn.innerHTML = "<i class='fa-solid fa-user-check'></i> 로그아웃";
             loginBtn.onclick = logoutGoogleUser;
         }
+        
+        // Render Profile Info
+        if (profileHeader) {
+            profileHeader.classList.remove("hidden");
+            if (avatarImg) {
+                avatarImg.src = userAvatar || "";
+                avatarImg.onerror = () => { 
+                    avatarImg.src = "https://lh3.googleusercontent.com/a/default-user=s96-c"; 
+                };
+            }
+            if (nameSpan) nameSpan.textContent = userName || "사용자";
+            if (emailSpan) emailSpan.textContent = userEmail;
+        }
     } else {
-        const startBtn = document.getElementById("btn-landing-start-app");
+        isLoggedIn = false;
+        
+        // Disable Start App Button
         if (startBtn) {
             startBtn.classList.add("disabled");
             startBtn.disabled = true;
         }
+        
+        // Reset Login/Logout Button
+        if (loginBtn) {
+            loginBtn.innerHTML = "<i class='fa-solid fa-user-lock'></i> 로그인";
+            loginBtn.onclick = () => toggleDrawer('login', true);
+        }
+        
+        // Hide Profile Info
+        if (profileHeader) {
+            profileHeader.classList.add("hidden");
+        }
     }
-});
+}
 
 // -----------------
 // View Router & Drawer Controllers
@@ -120,13 +183,6 @@ async function loadAppSettings() {
             settings = await response.json();
             
             // Populate form fields
-            document.getElementById("setting-azure-key").value = settings.azure_speech_key || "";
-            document.getElementById("setting-azure-region").value = settings.azure_speech_region || "";
-            document.getElementById("setting-ocr-key").value = settings.google_vision_ocr_key || "";
-            document.getElementById("setting-sheet-webhook").value = settings.google_sheets_webhook_url || "";
-            document.getElementById("setting-auth-email").value = settings.authorized_email || "";
-            document.getElementById("setting-google-client-id").value = settings.google_client_id || "";
-            document.getElementById("setting-drive-folder").value = settings.google_drive_folder_id || "";
             document.getElementById("setting-backend-url").value = BACKEND_URL;
             document.getElementById("setting-learning-lang").value = settings.learning_language || "ja-JP";
             document.getElementById("setting-storage-path").value = settings.local_storage_path || "";
@@ -134,13 +190,8 @@ async function loadAppSettings() {
             // Update status dots indicators
             updateStatusDots();
             
-            // Initialize Google Sign-In button if Client ID exists
+            // Initialize Google Sign-In button stub
             initGoogleSignIn();
-            
-            // Warn if required API settings are empty when practice view is active
-            if (activeView === "practice" && (!settings.azure_speech_key || !settings.azure_speech_region || !settings.google_sheets_webhook_url || !settings.authorized_email)) {
-                alert("⚠️ API 설정이 완료되지 않았습니다!\n실시간 발음 평가 및 구글 시트 연동을 위해 우측 하단의 [설정] 메뉴를 완료해 주세요.");
-            }
         }
     } catch (err) {
         console.error("Failed to load settings from server:", err);
@@ -161,14 +212,13 @@ function updateStatusDots() {
         dotMic.title = "마이크 비활성화";
     }
     
-    // Check if Sheets webhook is set
-    const sheetsWebhook = document.getElementById("setting-sheet-webhook").value.trim();
-    if (sheetsWebhook) {
+    // Sheets webhook is managed on server-side env vars
+    if (settings.has_google_sheets) {
         dotSheets.className = "dot dot-green";
-        dotSheets.title = "구글 시트 연동 활성";
+        dotSheets.title = "구글 시트 연동 활성 (서버 환경변수)";
     } else {
-        dotSheets.className = "dot dot-gray";
-        dotSheets.title = "구글 시트 연동 대기";
+        dotSheets.className = "dot dot-red";
+        dotSheets.title = "구글 시트 연동 비활성 (서버 환경변수 미설정)";
     }
 }
 
@@ -176,14 +226,6 @@ function updateStatusDots() {
 document.getElementById("setting-mic-toggle").addEventListener("change", updateStatusDots);
 
 async function saveAppSettings() {
-    settings.azure_speech_key = document.getElementById("setting-azure-key").value.trim();
-    settings.azure_speech_region = document.getElementById("setting-azure-region").value.trim();
-    settings.google_vision_ocr_key = document.getElementById("setting-ocr-key").value.trim();
-    settings.google_sheets_webhook_url = document.getElementById("setting-sheet-webhook").value.trim();
-    settings.authorized_email = document.getElementById("setting-auth-email").value.trim();
-    settings.google_client_id = document.getElementById("setting-google-client-id").value.trim();
-    settings.google_drive_folder_id = document.getElementById("setting-drive-folder").value.trim();
-    
     const inputBackendUrl = document.getElementById("setting-backend-url").value.trim();
     if (inputBackendUrl) {
         BACKEND_URL = inputBackendUrl;
@@ -196,10 +238,6 @@ async function saveAppSettings() {
     settings.learning_language = document.getElementById("setting-learning-lang").value;
     settings.local_storage_path = document.getElementById("setting-storage-path").value.trim();
     
-    if (!settings.azure_speech_key || !settings.azure_speech_region || !settings.google_sheets_webhook_url || !settings.authorized_email) {
-        alert("⚠️ API 키 또는 설정값 중 일부가 비어 있습니다.\n해당 기능(Azure 발음 평가 혹은 구글 시트 전송)은 필수 값이 모두 등록되기 전까지 시뮬레이션 모드로 동작합니다.");
-    }
-    
     try {
         const response = await fetch(`${BACKEND_URL}/api/settings`, {
             method: "POST",
@@ -208,10 +246,9 @@ async function saveAppSettings() {
         });
         
         if (response.ok) {
-            alert("설정이 로컬 저장소에 암호화 보관되었습니다!");
+            alert("설정이 성공적으로 저장되었습니다!");
             updateStatusDots();
             toggleDrawer('settings', false);
-            // Reload settings to update the frontend state and re-render the Google button
             loadAppSettings();
         } else {
             const errText = await response.text();
@@ -223,76 +260,7 @@ async function saveAppSettings() {
     }
 }
 
-async function testAzureConnection() {
-    const key = document.getElementById("setting-azure-key").value.trim();
-    const region = document.getElementById("setting-azure-region").value.trim();
-    const statusLabel = document.getElementById("azure-test-status");
-    
-    if (!key || !region) {
-        statusLabel.textContent = "API Key와 리전을 입력하세요.";
-        statusLabel.style.color = "var(--color-low)";
-        return;
-    }
-    statusLabel.textContent = "인증 중...";
-    statusLabel.style.color = "var(--text-muted)";
-    
-    try {
-        const response = await fetch(`${BACKEND_URL}/api/test-azure-connection`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ azure_speech_key: key, azure_speech_region: region })
-        });
-        
-        if (response.ok) {
-            const res = await response.json();
-            if (res.success) {
-                statusLabel.textContent = "성공! 유효한 계정입니다.";
-                statusLabel.style.color = "var(--color-high)";
-            } else {
-                statusLabel.textContent = "인증 실패. 자격증명을 확인하세요.";
-                statusLabel.style.color = "var(--color-low)";
-            }
-        }
-    } catch (err) {
-        statusLabel.textContent = "서버 연결 오류";
-        statusLabel.style.color = "var(--color-low)";
-    }
-}
 
-async function testSheetsConnection() {
-    const webhookUrl = document.getElementById("setting-sheet-webhook").value.trim();
-    const statusLabel = document.getElementById("sheet-test-status");
-    
-    if (!webhookUrl) {
-        statusLabel.textContent = "Webhook URL을 입력하세요.";
-        statusLabel.style.color = "var(--color-low)";
-        return;
-    }
-    statusLabel.textContent = "테스트 중...";
-    statusLabel.style.color = "var(--text-muted)";
-    
-    try {
-        const response = await fetch(`${BACKEND_URL}/api/test-sheet-connection`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ google_sheets_webhook_url: webhookUrl })
-        });
-        
-        if (response.ok) {
-            const res = await response.json();
-            if (res.success) {
-                statusLabel.textContent = "연동 성공! 테스트 행 추가됨.";
-                statusLabel.style.color = "var(--color-high)";
-            } else {
-                statusLabel.textContent = "연동 실패. URL을 확인해 주세요.";
-                statusLabel.style.color = "var(--color-low)";
-            }
-        }
-    } catch (err) {
-        statusLabel.textContent = "서버 연결 오류";
-        statusLabel.style.color = "var(--color-low)";
-    }
-}
 
 // -----------------
 // File Upload & Local Import handlers
@@ -829,7 +797,7 @@ async function submitAssessment() {
     }
     
     // Warn if API keys are missing on submit
-    if (!settings.azure_speech_key || !settings.azure_speech_region) {
+    if (!settings.has_azure_speech) {
         const confirmMock = confirm("⚠️ Azure Speech API 구독 설정이 비어 있습니다. 시뮬레이터 모드로 발음 평가를 진행하시겠습니까?");
         if (!confirmMock) return;
     }
@@ -1067,136 +1035,48 @@ function handleStartAppButtonClick() {
 
 
 
-function logoutGoogleUser() {
+async function logoutGoogleUser() {
+    if (supabaseClient) {
+        try {
+            await supabaseClient.auth.signOut();
+        } catch (e) {
+            console.error("Supabase 로그아웃 중 에러:", e);
+        }
+    }
+    
     sessionStorage.removeItem("isLoggedIn");
     sessionStorage.removeItem("userEmail");
-    isLoggedIn = false;
+    sessionStorage.removeItem("userName");
+    sessionStorage.removeItem("userAvatar");
     
-    const startBtn = document.getElementById("btn-landing-start-app");
-    if (startBtn) {
-        startBtn.classList.add("disabled");
-        startBtn.disabled = true;
-    }
-    
-    const loginBtn = document.getElementById("btn-tab-login");
-    if (loginBtn) {
-        loginBtn.innerHTML = "<i class='fa-solid fa-user-lock'></i> 로그인";
-        loginBtn.onclick = () => toggleDrawer('login', true);
-    }
-    
+    updateLoginUI();
     alert("로그아웃 되었습니다.");
 }
 
 function initGoogleSignIn() {
-    const btnContainer = document.getElementById("google-signin-button");
-    if (!btnContainer) return;
-    
-    // Clear previous button
-    btnContainer.innerHTML = "";
-    
-    const clientID = settings ? settings.google_client_id : "";
-    if (!clientID) {
-        console.log("No Google Client ID set; native sign-in button skipped.");
-        btnContainer.innerHTML = "<p style='font-size: 0.8rem; color: var(--text-muted); text-align: center;'>[설정]에서 Google Client ID를 등록해 주세요.</p>";
+    // Supabase Google OAuth를 사용하므로 기존 Google GIS SDK 초기화는 건너뜁니다.
+    console.log("Using Supabase Google OAuth instead of legacy GIS.");
+}
+
+async function loginWithGoogle() {
+    if (!supabaseClient) {
+        alert("Supabase 클라이언트가 초기화되지 않았습니다. 잠시 후 다시 시도해 주세요.");
         return;
     }
     
-    if (typeof google === "undefined" || !google.accounts) {
-        console.warn("Google client SDK not loaded yet. Retrying in 1s...");
-        setTimeout(initGoogleSignIn, 1000);
-        return;
-    }
+    const redirectToUrl = `${window.location.origin}/auth/callback`;
+    console.log("Initiating Supabase Google OAuth to:", redirectToUrl);
     
-    try {
-        google.accounts.id.initialize({
-            client_id: clientID,
-            callback: handleCredentialResponse
-        });
-        google.accounts.id.renderButton(
-            btnContainer,
-            { theme: "outline", size: "large", width: 280 }
-        );
-    } catch (e) {
-        console.error("Failed to initialize Google Sign-In SDK:", e);
-    }
-}
-
-function handleCredentialResponse(response) {
-    try {
-        const token = response.credential;
-        const base64Url = token.split('.')[1];
-        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-        const jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function(c) {
-            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-        }).join(''));
-        
-        const payload = JSON.parse(jsonPayload);
-        console.log("Google Social Login verified email:", payload.email);
-        
-        submitGoogleLoginWithVerifiedEmail(payload.email);
-    } catch (err) {
-        console.error("Failed to parse Google JWT token:", err);
-        alert("구글 로그인 토큰 해독 중 에러가 발생했습니다.");
-    }
-}
-
-async function submitGoogleLoginWithVerifiedEmail(email) {
-    const btn = document.getElementById("btn-login-submit");
-    const originalText = btn ? btn.innerHTML : "";
-    if (btn) {
-        btn.innerHTML = "<i class='fa-solid fa-spinner fa-spin'></i>";
-        btn.disabled = true;
-    }
+    const { error } = await supabaseClient.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+            redirectTo: redirectToUrl
+        }
+    });
     
-    try {
-        const response = await fetch(`${BACKEND_URL}/api/login`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email: email })
-        });
-        
-        if (response.ok) {
-            alert(`구글 계정 인증 성공: ${email}`);
-            isLoggedIn = true;
-            
-            const startBtn = document.getElementById("btn-landing-start-app");
-            if (startBtn) {
-                startBtn.classList.remove("disabled");
-                startBtn.disabled = false;
-            }
-            
-            sessionStorage.setItem("userEmail", email);
-            sessionStorage.setItem("isLoggedIn", "true");
-            toggleDrawer('login', false);
-            
-            const loginBtn = document.getElementById("btn-tab-login");
-            if (loginBtn) {
-                loginBtn.innerHTML = "<i class='fa-solid fa-user-check'></i> 로그아웃";
-                loginBtn.onclick = logoutGoogleUser;
-            }
-        } else {
-            const res = await response.json();
-            alert(`❌ 로그인 실패: ${res.message || "미승인 구글 계정"}`);
-            
-            isLoggedIn = false;
-            sessionStorage.removeItem("isLoggedIn");
-            sessionStorage.removeItem("userEmail");
-            
-            const startBtn = document.getElementById("btn-landing-start-app");
-            if (startBtn) {
-                startBtn.classList.add("disabled");
-                startBtn.disabled = true;
-            }
-            loadAppSettings();
-        }
-    } catch (err) {
-        console.error("Google login net error:", err);
-        alert("서버 연결 실패. 네트워크 연결 상태를 확인해 주세요.");
-    } finally {
-        if (btn) {
-            btn.innerHTML = originalText;
-            btn.disabled = false;
-        }
+    if (error) {
+        console.error("Supabase OAuth error:", error);
+        alert("Google 로그인 과정에서 오류가 발생했습니다: " + error.message);
     }
 }
 

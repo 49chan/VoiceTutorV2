@@ -3,6 +3,21 @@ import json
 from pydantic import BaseModel
 from typing import Optional
 
+# Load .env file manually into os.environ for local environments
+_env_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env")
+if os.path.exists(_env_file):
+    try:
+        with open(_env_file, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                if "=" in line:
+                    k, v = line.split("=", 1)
+                    os.environ[k.strip()] = v.strip()
+    except Exception:
+        pass
+
 try:
     from api.security import encrypt_value, decrypt_value
 except ImportError:
@@ -23,6 +38,8 @@ class AppSettings(BaseModel):
     learning_language: str = "ja-JP"
     local_storage_path: Optional[str] = ""
     authorized_email: str = "yqhah@gmail.com"
+    has_azure_speech: Optional[bool] = False
+    has_google_sheets: Optional[bool] = False
 
 def get_default_storage_path() -> str:
     """Gets the default directory to save assessment JSONs and audio MP3s."""
@@ -49,20 +66,30 @@ def get_default_storage_path() -> str:
 _cached_settings = None
 
 def load_settings() -> AppSettings:
-    """Loads configuration and decrypts keys. Returns default config on failure."""
+    """Loads configuration. Returns default config on failure. Credentials are only loaded from Environment Variables."""
     global _cached_settings
     if _cached_settings is not None:
+        # Dynamically refresh credentials in cache in case env vars changed
+        _cached_settings.azure_speech_key = os.environ.get("AZURE_SPEECH_KEY", "")
+        _cached_settings.azure_speech_region = os.environ.get("AZURE_SPEECH_REGION", "")
+        _cached_settings.google_vision_ocr_key = os.environ.get("GOOGLE_VISION_OCR_KEY", "")
+        _cached_settings.google_sheets_webhook_url = os.environ.get("GOOGLE_SHEETS_WEBHOOK_URL", "")
+        _cached_settings.google_client_id = os.environ.get("GOOGLE_CLIENT_ID", "")
+        _cached_settings.google_drive_folder_id = os.environ.get("GOOGLE_DRIVE_FOLDER_ID", "")
+        _cached_settings.authorized_email = os.environ.get("AUTHORIZED_EMAIL", "")
+        _cached_settings.has_azure_speech = bool(_cached_settings.azure_speech_key and _cached_settings.azure_speech_region)
+        _cached_settings.has_google_sheets = bool(_cached_settings.google_sheets_webhook_url)
         return _cached_settings
         
     default_path = get_default_storage_path()
     
-    # 1. Initialize with default model values
+    # 1. Initialize with defaults (Non-credentials)
     settings = AppSettings(
         local_storage_path=default_path,
-        authorized_email="yqhah@gmail.com"
+        learning_language="ja-JP"
     )
     
-    # 2. Load from settings.json if it exists
+    # 2. Load from settings.json if it exists (Only non-credential configurations)
     if os.path.exists(SETTINGS_FILE):
         try:
             with open(SETTINGS_FILE, "r", encoding="utf-8") as f:
@@ -71,70 +98,45 @@ def load_settings() -> AppSettings:
             storage_path = data.get("local_storage_path") or default_path
             os.makedirs(storage_path, exist_ok=True)
 
-            settings = AppSettings(
-                azure_speech_key=decrypt_value(data.get("azure_speech_key", "")),
-                azure_speech_region=decrypt_value(data.get("azure_speech_region", "")),
-                google_vision_ocr_key=decrypt_value(data.get("google_vision_ocr_key", "")),
-                google_sheets_webhook_url=decrypt_value(data.get("google_sheets_webhook_url", "")),
-                google_client_id=data.get("google_client_id", ""),
-                google_drive_folder_id=decrypt_value(data.get("google_drive_folder_id", "")),
-                learning_language=data.get("learning_language", "ja-JP"),
-                local_storage_path=storage_path,
-                authorized_email=data.get("authorized_email", "yqhah@gmail.com")
-            )
+            settings.learning_language = data.get("learning_language", "ja-JP")
+            settings.local_storage_path = storage_path
         except Exception:
             pass
 
-    # 3. Apply Environment Variable overrides (Crucial for Vercel/Cloud serverless environments!)
-    if os.environ.get("AZURE_SPEECH_KEY"):
-        settings.azure_speech_key = os.environ.get("AZURE_SPEECH_KEY")
-    if os.environ.get("AZURE_SPEECH_REGION"):
-        settings.azure_speech_region = os.environ.get("AZURE_SPEECH_REGION")
-    if os.environ.get("GOOGLE_VISION_OCR_KEY"):
-        settings.google_vision_ocr_key = os.environ.get("GOOGLE_VISION_OCR_KEY")
-    if os.environ.get("GOOGLE_SHEETS_WEBHOOK_URL"):
-        settings.google_sheets_webhook_url = os.environ.get("GOOGLE_SHEETS_WEBHOOK_URL")
-    if os.environ.get("GOOGLE_CLIENT_ID"):
-        settings.google_client_id = os.environ.get("GOOGLE_CLIENT_ID")
-    if os.environ.get("GOOGLE_DRIVE_FOLDER_ID"):
-        settings.google_drive_folder_id = os.environ.get("GOOGLE_DRIVE_FOLDER_ID")
-    if os.environ.get("AUTHORIZED_EMAIL"):
-        settings.authorized_email = os.environ.get("AUTHORIZED_EMAIL")
+    # 3. Always apply credentials exclusively from Environment Variables (Not from settings.json)
+    settings.azure_speech_key = os.environ.get("AZURE_SPEECH_KEY", "")
+    settings.azure_speech_region = os.environ.get("AZURE_SPEECH_REGION", "")
+    settings.google_vision_ocr_key = os.environ.get("GOOGLE_VISION_OCR_KEY", "")
+    settings.google_sheets_webhook_url = os.environ.get("GOOGLE_SHEETS_WEBHOOK_URL", "")
+    settings.google_client_id = os.environ.get("GOOGLE_CLIENT_ID", "")
+    settings.google_drive_folder_id = os.environ.get("GOOGLE_DRIVE_FOLDER_ID", "")
+    settings.authorized_email = os.environ.get("AUTHORIZED_EMAIL", "")
+    settings.has_azure_speech = bool(settings.azure_speech_key and settings.azure_speech_region)
+    settings.has_google_sheets = bool(settings.google_sheets_webhook_url)
         
+    _cached_settings = settings
     return settings
 
 def save_settings(settings: AppSettings) -> bool:
-    """Encrypts keys and saves the configuration to settings.json. Gracefully bypasses on read-only environments."""
+    """Saves the non-credential configuration (language and local paths) to settings.json. Gracefully bypasses on read-only environments."""
     global _cached_settings
     _cached_settings = settings
     try:
         storage_path = settings.local_storage_path or get_default_storage_path()
         
-        # We try to create the folder and write the file.
-        # If we hit PermissionError or OSError (common in serverless read-only filesystems),
-        # we log a warning and return True to prevent the UI from showing a failure state.
         try:
             os.makedirs(storage_path, exist_ok=True)
             
             data_to_save = {
-                "azure_speech_key": encrypt_value(settings.azure_speech_key),
-                "azure_speech_region": encrypt_value(settings.azure_speech_region),
-                "google_vision_ocr_key": encrypt_value(settings.google_vision_ocr_key),
-                "google_sheets_webhook_url": encrypt_value(settings.google_sheets_webhook_url),
-                "google_client_id": settings.google_client_id,
-                "google_drive_folder_id": encrypt_value(settings.google_drive_folder_id),
                 "learning_language": settings.learning_language,
-                "local_storage_path": os.path.abspath(storage_path),
-                "authorized_email": settings.authorized_email
+                "local_storage_path": os.path.abspath(storage_path)
             }
             
             with open(SETTINGS_FILE, "w", encoding="utf-8") as f:
                 json.dump(data_to_save, f, ensure_ascii=False, indent=2)
             return True
         except (PermissionError, OSError) as e:
-            # Check if running on Vercel or if the error indicates a read-only/permission issue
             if os.environ.get("VERCEL") or "read-only" in str(e).lower() or "[errno 30]" in str(e).lower() or "[errno 13]" in str(e).lower():
-                # Silently succeed to satisfy frontend UI drawer
                 return True
             raise e
     except Exception:

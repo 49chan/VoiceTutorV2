@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>로그인 처리 중 - TutorDoc AI</title>
+    <!-- Supabase JS Client SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            background-color: #0f172a;
+            color: #f8fafc;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            gap: 20px;
+        }
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            border-top: 4px solid #38bdf8;
+            border-radius: 50%;
+            width: 48px;
+            height: 48px;
+            animation: spin 1s linear infinite;
+        }
+        .message {
+            font-size: 1rem;
+            font-weight: 500;
+            color: #94a3b8;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="spinner"></div>
+    <div class="message" id="status-message">구글 로그인 세션을 처리하는 중입니다. 잠시만 기다려 주세요...</div>
+
+    <script>
+        // 백엔드 URL 획득 (로컬 스토리지 또는 현재 도메인)
+        const BACKEND_URL = localStorage.getItem("backend_url") || window.location.origin;
+        const statusMsg = document.getElementById("status-message");
+
+        async function handleAuthCallback() {
+            try {
+                // 1. 백엔드로부터 Supabase 공개 설정정보 획득
+                statusMsg.textContent = "시스템 연동 설정을 구성하는 중입니다...";
+                const res = await fetch(`${BACKEND_URL}/api/supabase-config`);
+                if (!res.ok) {
+                    throw new Error("백엔드로부터 Supabase 설정 정보를 읽지 못했습니다.");
+                }
+                const config = await res.json();
+                
+                if (!config.supabase_url || !config.supabase_key) {
+                    throw new Error("Supabase URL 또는 Publishable Key가 설정되지 않았습니다.");
+                }
+
+                // 2. Supabase 클라이언트 인스턴스 초기화
+                const supabaseClient = supabase.createClient(config.supabase_url, config.supabase_key);
+
+                // 3. 해시/쿼리 내 토큰을 통한 세션 획득
+                // Supabase SDK가 페이지 로드 시 URL 해시 정보(access_token, refresh_token 등)를 감지하여 세션 수립을 마칩니다.
+                statusMsg.textContent = "사용자 프로필 인증 및 세션 검증 중...";
+                const { data: { session }, error } = await supabaseClient.auth.getSession();
+                
+                if (error) throw error;
+
+                if (session && session.user) {
+                    const user = session.user;
+                    const meta = user.user_metadata || {};
+                    
+                    // 기존 로그인 검증 로직과의 호환성을 고려해 sessionStorage에 사용자 정보 저장
+                    sessionStorage.setItem("isLoggedIn", "true");
+                    sessionStorage.setItem("userEmail", user.email);
+                    sessionStorage.setItem("userName", meta.full_name || meta.name || user.email.split('@')[0]);
+                    sessionStorage.setItem("userAvatar", meta.avatar_url || "");
+                    
+                    statusMsg.textContent = "인증 성공! 잠시 후 홈 화면으로 이동합니다.";
+                    
+                    // 메인 화면으로 리다이렉트
+                    setTimeout(() => {
+                        window.location.href = "/";
+                    }, 500);
+                } else {
+                    throw new Error("유효한 세션 데이터를 찾을 수 없습니다.");
+                }
+            } catch (err) {
+                console.error("Auth Callback Exception:", err);
+                statusMsg.textContent = "로그인 세션 처리 실패: " + err.message;
+                statusMsg.style.color = "#ef4444";
+                
+                setTimeout(() => {
+                    window.location.href = "/";
+                }, 3000);
+            }
+        }
+
+        // 페이지 로딩 완료 시 처리 시작
+        window.addEventListener("load", handleAuthCallback);
+    </script>
+</body>
+</html>

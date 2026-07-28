@@ -195,58 +195,41 @@ class LoginRequest(BaseModel):
 
 @app.post("/api/login")
 def api_login(req: LoginRequest):
-    """Checks google email login. Wipes credentials from settings.json if invalid."""
-    settings = load_settings()
+    """Accepts any authenticated google email. No email list comparisons."""
     input_email = req.email.strip().lower()
-    correct_email = settings.authorized_email.strip().lower()
-    
-    if input_email != correct_email:
-        logger.warning(f"Unauthorized email login: '{input_email}'. Clearing sensitive credentials.")
-        settings.azure_speech_key = ""
-        settings.google_vision_ocr_key = ""
-        settings.google_sheets_webhook_url = ""
-        save_settings(settings)
-        return JSONResponse(
-            status_code=403,
-            content={
-                "success": False,
-                "message": "등록되지 않은 구글 계정입니다. 보안을 위해 시스템에 저장된 API Key가 즉시 초기화되었습니다!"
-            }
-        )
+    logger.info(f"User logged in via Google OAuth: '{input_email}'")
     return {"success": True, "message": "인증 성공"}
 
 @app.get("/api/settings", response_model=AppSettings)
 def api_get_settings():
-    """Retrieves current settings with credentials masked for browser privacy."""
+    """Retrieves current non-credential settings. Credentials are hidden and handled by environment variables."""
     s = load_settings()
-    if s.azure_speech_key:
-        s.azure_speech_key = "********"
-    if s.google_vision_ocr_key:
-        s.google_vision_ocr_key = "********"
-    if s.google_sheets_webhook_url:
-        s.google_sheets_webhook_url = "********"
-    if s.google_drive_folder_id:
-        s.google_drive_folder_id = "********"
+    # Mask all credentials to blank for browser client
+    s.azure_speech_key = ""
+    s.azure_speech_region = ""
+    s.google_vision_ocr_key = ""
+    s.google_sheets_webhook_url = ""
+    s.google_client_id = ""
+    s.google_drive_folder_id = ""
+    s.authorized_email = ""
     return s
 
 @app.post("/api/settings")
 def api_save_settings(settings: AppSettings):
-    """Saves settings, checking for masked placeholders to avoid overwriting existing credentials."""
-    existing = load_settings()
-    
-    if settings.azure_speech_key == "********":
-        settings.azure_speech_key = existing.azure_speech_key
-    if settings.google_vision_ocr_key == "********":
-        settings.google_vision_ocr_key = existing.google_vision_ocr_key
-    if settings.google_sheets_webhook_url == "********":
-        settings.google_sheets_webhook_url = existing.google_sheets_webhook_url
-    if settings.google_drive_folder_id == "********":
-        settings.google_drive_folder_id = existing.google_drive_folder_id
-        
+    """Saves non-credential settings. Environmental credentials are left untouched."""
+    # We only save learning_language and local_storage_path via save_settings
     success = save_settings(settings)
     if not success:
         raise HTTPException(status_code=500, detail="Failed to save settings.")
     return {"status": "success", "message": "Settings saved successfully."}
+
+@app.get("/api/supabase-config")
+def api_get_supabase_config():
+    """Retrieves public Supabase configuration settings."""
+    return {
+        "supabase_url": os.environ.get("NEXT_PUBLIC_SUPABASE_URL", ""),
+        "supabase_key": os.environ.get("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "")
+    }
 
 @app.post("/api/test-azure-connection")
 async def api_test_azure_connection(req: KeyTestRequestAzure):
