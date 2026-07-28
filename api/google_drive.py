@@ -9,59 +9,65 @@ from googleapiclient.http import MediaIoBaseUpload
 
 logger = logging.getLogger("TutorDocBackend")
 
-def get_drive_credentials() -> Optional[service_account.Credentials]:
-    """Retrieves Google service account credentials from environment variables or local JSON key file."""
-    scopes = ["https://www.googleapis.com/auth/drive"]
-    
-    # 1. Try loading from environment variable (useful for Vercel deployment)
-    env_json = os.environ.get("GOOGLE_DRIVE_CREDENTIALS_JSON")
-    if env_json:
-        try:
-            info = json.loads(env_json)
-            return service_account.Credentials.from_service_account_info(info, scopes=scopes)
-        except Exception as e:
-            logger.error(f"Failed to load credentials from GOOGLE_DRIVE_CREDENTIALS_JSON: {e}")
-
-    # 2. Try loading from local key file (useful for local development, ignored by git)
-    local_key_path = os.path.join(os.path.dirname(__file__), "google_drive_key.json")
-    if os.path.exists(local_key_path):
-        try:
-            return service_account.Credentials.from_service_account_file(local_key_path, scopes=scopes)
-        except Exception as e:
-            logger.error(f"Failed to load credentials from google_drive_key.json: {e}")
-
-    logger.warning("Google Drive credentials not found. Drive uploads will be skipped.")
-    return None
-
 def upload_file_to_drive(file_content: bytes, filename: str, mime_type: str, folder_id: str) -> Optional[str]:
-    """Streams and uploads binary file contents directly to Google Drive folder using the Drive API."""
-    if not folder_id:
-        logger.warning(f"No Google Drive folder ID configured. Skipping upload for {filename}.")
-        return None
-        
-    credentials = get_drive_credentials()
-    if not credentials:
-        logger.warning("No Google credentials available. Skipping upload.")
-        return None
-        
+    """Sends file contents to the Google Apps Script Webhook to save in the user's personal Google Drive (VoiceTutor folder)."""
     try:
-        service = build("drive", "v3", credentials=credentials)
+        from api.config import load_settings
+    except ImportError:
+        try:
+            from backend.config import load_settings
+        except ImportError:
+            from config import load_settings
+
+    settings = load_settings()
+    webhook_url = settings.google_sheets_webhook_url
+    
+    if not webhook_url:
+        logger.warning("No Google Webhook URL configured. Skipping upload.")
+        return None
         
-        file_metadata = {
-            "name": filename,
-            "parents": [folder_id]
+    logger.info(f"Uploading '{filename}' via Google Apps Script Webhook...")
+    
+    try:
+        import base64
+        import httpx
+        
+        # Base64 encode the binary content
+        encoded_content = base64.b64encode(file_content).decode("utf-8")
+        
+        payload = {
+            "filename": filename,
+            "file_content": encoded_content,
+            "mime_type": mime_type,
+            "is_base64": True,
+            "parent_folder_id": folder_id
         }
         
-        media = MediaIoBaseUpload(io.BytesIO(file_content), mimetype=mime_type, resumable=True)
-        uploaded_file = service.files().create(
-            body=file_metadata,
-            media_body=media,
-            fields="id"
-        ).execute()
-        
-        file_id = uploaded_file.get("id")
-        logger.info(f"Successfully uploaded {filename} to Google Drive. File ID: {file_id}")
-        return file_id
+        # Call the Apps Script Webhook synchronously
+        with httpx.Client() as client:
+            response = client.post(
+                webhook_url,
+                json=payload,
+                timeout=30.0,
+                headers={"Content-Type": "application/json"},
+                follow_redirects=True
+            )
+            
+        if response.status_code in (200, 201):
+            try:
+                res_data = response.json()
+                if res_data.get("status") == "success":
+                    file_id = res_data.get("file_id")
+                    logger.info(f"Successfully uploaded {filename} via Webhook. File ID: {file_id}")
+                    return file_id
+                else:
+                    logger.error(f"Webhook upload failed: {res_data.get('message')}")
+            except Exception as json_err:
+                logger.error(f"Failed to parse Webhook JSON response: {json_err}. Response text: {response.text}")
+        else:
+            logger.error(f"Webhook responded with HTTP status {response.status_code}. Response: {response.text}")
+            
+        return None
     except Exception as e:
-        logger.error(f"Google Drive upload exception for file {filename}: {e}")
+        logger.error(f"Google Drive Webhook upload exception for file {filename}: {e}")
         return None
