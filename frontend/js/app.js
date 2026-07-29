@@ -937,7 +937,6 @@ async function submitAssessment() {
                 btnRecord.disabled = true;
                 btnRecord.classList.add("disabled");
             }
-
             // Supabase user_records 테이블 적재
             if (supabaseClient) {
                 try {
