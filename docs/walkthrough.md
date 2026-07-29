@@ -1,88 +1,52 @@
-# TutorDoc AI Phase 2 MVP - Walkthrough & GitHub Repository Guide
+# UI 및 기능 개선 완료 리포트 (Walkthrough)
 
-We have successfully integrated both Google Drive API (for cloud file persistence) and Google Identity Services (for secure Google social sign-in), and fully configured the application to deploy on Vercel's serverless environment!
+요청하신 4가지 수정 사항을 모두 반영하여 프론트엔드 코드(HTML, CSS, JS)의 수정을 성공적으로 완료했습니다.
 
----
+## 🛠️ 수정 반영 내용 요약
 
-## 🔗 GitHub Remote Repository
-The code has been successfully pushed and is available online:
-- **Repository URL**: [https://github.com/49chan/voice_tutor](https://github.com/49chan/voice_tutor)
-- **Primary Branches**: `main`, `master` (both kept fully in sync)
+### 1. 설정 (Theme Settings)
+- **추가 내용**: 기기 및 환경 설정 창에 **화면 테마 설정** 드롭다운 메뉴를 새로 배치했습니다.
+- **테마 전환**: **블랙 (기본)**과 **화이트** 테마 중 하나를 선택하면 화면의 배경색, 텍스트 색상, 입력 박스 배경 및 테두리가 즉시 라이트 모드/다크 모드로 전환됩니다.
+- **영구 저장**: 선택된 테마는 브라우저의 `localStorage`에 저장되어, 웹 앱을 다시 열거나 새로고침해도 그대로 유지됩니다.
 
----
+### 2. 변환 (Hide Convert Button)
+- **수정 내용**: 상단 액션 바에서 불필요했던 **[변환]** 버튼을 `style="display: none;"` 처리를 통해 숨김 처리했습니다.
+- **동작 보장**: "파일열기"에서 PDF 파일을 업로드하면 자동으로 변환 드로어가 실행되는 기존 로직과 자바스크립트 참조에는 영향을 주지 않도록 마크업을 유지했습니다.
 
-## ☁️ Google Cloud Integrations Added
+### 3. 녹음 (Record Button & Timer)
+- **녹음 버튼 비활성화**: 평가가 끝나고 결과 데이터가 성공적으로 출력된 후에는 오작동을 차단하기 위해 **[녹음]** 버튼을 비활성화(`disabled` 및 회색 흐림 스타일) 처리합니다.
+- **타이머 위치 변경**: 기존 우측 하단에 조그맣게 노출되던 제한시간 타이머(`recording-timer-countdown`)를 **우측 상단 녹음 상태 표시 아이콘(빨간색 플레이 아이콘) 바로 왼쪽**으로 이동했습니다.
 
-### 1. Google Drive API + Vercel Deployment
-Instead of storing audio and logs on local disks (which Vercel clears on restarts), the app now streams `.txt`, `.json`, and `.mp3` files directly to your cloud Google Drive folder!
-* **Serverless Compatibility**: Bypasses Vercel's local file restriction, enabling 100% free hosting.
-* **Credentials Security**:
-  * Local development uses `backend/google_drive_key.json` (automatically ignored by git for security).
-  * Vercel uses the environment variable `GOOGLE_DRIVE_CREDENTIALS_JSON` holding the service account key.
-
-### 2. Google Identity Services (Google Social Sign-In Web SDK)
-Instead of typing email addresses manually, you can now log in securely with your native Google account.
-* **Authentication Security**: Prevents fake/mock email input. Only verified Google accounts are submitted.
-* **Visual Button**: Embeds the official "Sign in with Google" standard button directly in the login drawer interface.
+### 4. 평가 (Evaluate Button & Layout)
+- **평가 버튼 비활성화**: 평가 완료 후 **[평가]** 버튼을 비활성화(`disabled` 처리)하여 여러 번 잘못 중복 클릭되는 것을 방지했습니다. 
+- **레이아웃 상단 이동**: 하단에 있던 **종합 피드백 리포트**와 **점수판** 영역을 낭독 연습 카드 위쪽인 **화면 상단**으로 변경하여 사용자가 평가 결과를 스크롤 없이 즉시 눈에 띄게 확인할 수 있도록 디자인을 개선했습니다.
+- **편집 리셋 연동**: 문장을 직접 수정하기 위해 연필 단추를 눌렀다가 편집을 완료하는 시점(편집 탈출)에는 이전 평가 내역을 화면에서 정리하고, 새로운 녹음을 진행할 수 있도록 **[녹음] 버튼을 다시 활성화**하고 **[평가] 버튼은 녹음 완료 전까지 비활성화**하는 선순환 리셋 로직을 주입했습니다.
 
 ---
 
-## ⚙️ How to Set Up Credentials (GCP Console Steps)
-
-### A. Google Social Login Client ID
-1. Go to [Google Cloud Console](https://console.cloud.google.com/).
-2. Navigate to **APIs & Services** ➔ **Credentials**.
-3. Click **Create Credentials** ➔ **OAuth Client ID** (select Web Application).
-4. Add `http://localhost:8000`, `http://127.0.0.1:8000`, and your Vercel URL to the **Authorized JavaScript origins**.
-5. Copy the generated Client ID and paste it in the app Settings ➔ **Google Client ID**.
-
-### B. Google Drive API & Folder ID
-1. Enable **Google Drive API** in your Google Cloud Project.
-2. Go to **Credentials** ➔ Create a **Service Account** (type: free robot account).
-3. Create a **New Key (JSON)** under that Service Account.
-   * *Local Run*: Save it as `backend/google_drive_key.json` (do not change this filename).
-   * *Vercel Run*: Copy the raw contents of the JSON and save it as an Environment Variable named `GOOGLE_DRIVE_CREDENTIALS_JSON` in your Vercel Project dashboard.
-4. Create a folder in your Google Drive and share it with the **Service Account's email** as an "Editor".
-5. Copy the Folder ID from the browser URL (the long hash after `folders/`) and paste it in Settings ➔ **Google Drive Folder ID**.
+## 📂 변경된 파일 리스트
+- [index.html](file:///d:/49chan/12.%20Antigravity/20260724_KCoach_v2/frontend/index.html): 테마 드롭다운 마크업 추가, 타이머 요소 이동, 변환 단추 숨김 스타일, 레이아웃 순서 변경.
+- [style.css](file:///d:/49chan/12.%20Antigravity/20260724_KCoach_v2/frontend/css/style.css): 화이트 테마 클래스(`body.theme-white`) 변수/디테일 오버라이드 및 `practice-top-row` 스타일 변경.
+- [app.js](file:///d:/49chan/12.%20Antigravity/20260724_KCoach_v2/frontend/js/app.js): 테마 변경/초기 로드 핸들러, 평가 완료 시 버튼 잠금, 텍스트 편집 완료 시 리셋 연동.
 
 ---
 
-## 📱 Mobile & Tablet Layout Enhancements
-We resolved your layout concerns regarding cut-off buttons on mobile and tablet screens:
-1. **Dynamic Viewport Height (`dvh`)**: Swapped `100vh` for `100dvh` on `body`, `.screen-view`, and overlays to perfectly fit the actual visible area inside mobile browser chrome.
-2. **Bottom Safe Area Padding**: Added `padding-bottom: calc(24px + env(safe-area-inset-bottom));` to `.drawer-card`.
-3. **Scroll Spacing inside Drawers**: Added a healthy `padding-bottom: 30px;` to `.drawer-body` so that scrollable content can be pulled up entirely, making buttons completely visible.
-4. **Media Query Image Scaling**: Configured a responsive media query (for heights <= 720px) that automatically scales down the home page diagram (from `320px` to `220px` max-width) and shrinks vertical margins.
+## 🚀 로컬 기동 및 테스트 방법
 
----
+아래 방법으로 로컬 서버를 기동하여 변경 내용을 즉시 테스트하실 수 있습니다.
 
-## ✍️ Brand Name & Settings Save Error Updates
-1. **Branding Update**: Changed the landing page footer brand logo from "K-Coach AI Business Japanese" to **"Voice Tutor AI Business"**.
-2. **Settings Connection Error Details**: Improved the settings save exception reporting in `app.js` to display the exact URL target that failed:
-   - *Example Alert*: `❌ 서버 연결 실패. 지정한 API 주소(http://192.168.0.15:8000)에 백엔드가 구동 중인지, 또는 PC의 로컬 서버가 켜져 있는지 확인해 주세요.`
+### 1. 가동 방법 (FastAPI + Frontend 일체형 서빙)
+프로젝트 루트 폴더(`d:\49chan\12. Antigravity\20260724_KCoach_v2`)에서 터미널(PowerShell 또는 CMD)을 실행하고 아래의 명령어 중 하나로 구동해 주세요:
 
----
+```bash
+# Uvicorn을 이용한 서버 구동 (실시간 코드 수정 반영용)
+uvicorn api.index:app --host 0.0.0.0 --port 8000 --reload
 
-## 🛠️ Staged & Committed Assets (Safe Push Policy)
-We initialized the repository with a strict **`.gitignore`** to ensure your sensitive keys and credentials never leak to public repositories:
-- **Pushed files**: All frontend components (`index.html`, CSS, JS), backend Python servers (`main.py`, config, normalizers, unit tests), and developer plan blueprints.
-- **Ignored files (kept locally for security)**:
-  - `backend/settings.json` (contains your encrypted Azure Keys, OCR keys, and Google Webhook URLs).
-  - `backend/.secret.key` (decryption key).
-  - `recordings/` folder (local PCM WAV and converted MP3 files).
-  - Temporary files and precompiled caches (`__pycache__/`, `backend/temp/`).
-
----
-
-## 🏃 Running the Application (Local Mode)
-
-Simply start the FastAPI backend server:
-```powershell
-$env:PYTHONUTF8=1
-python backend/main.py
+# 또는 python 직접 실행
+python api/index.py
 ```
-Open **`http://127.0.0.1:8000`** in your browser. 
-1. Tapping **설정** in the landing header allows you to change the authorized email.
-2. Logging in with that email will unlock the app, while any other email will trigger the security wipe.
-3. Load a `.txt` file to verify that the text is immediately rendered.
-4. Load a `.json` file to verify that the buttons are disabled and the top-right header correctly displays the `.json` name.
+
+### 2. 접속 및 확인
+서버 구동 후 웹 브라우저를 열고 다음 주소에 접속하십시오:
+- **`http://localhost:8000`** (PC 테스트)
+- **`http://[PC의 내부IP주소]:8000`** (동일 공유기 Wi-Fi 연결 상태의 모바일 기기 테스트)

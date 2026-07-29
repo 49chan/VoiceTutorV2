@@ -34,6 +34,10 @@ let settings = {
 
 // Initial setup
 document.addEventListener("DOMContentLoaded", async () => {
+    // Apply saved screen theme immediately
+    const savedTheme = localStorage.getItem("screen_theme") || "black";
+    applyScreenTheme(savedTheme);
+
     loadAppSettings();
     initAudioPlayerEvents();
     
@@ -178,6 +182,12 @@ function toggleDrawer(drawerId, show) {
 // -----------------
 async function loadAppSettings() {
     try {
+        // Restore saved screen theme
+        const savedTheme = localStorage.getItem("screen_theme") || "black";
+        applyScreenTheme(savedTheme);
+        const themeSelect = document.getElementById("setting-screen-theme");
+        if (themeSelect) themeSelect.value = savedTheme;
+
         const response = await fetch(`${BACKEND_URL}/api/settings`);
         if (response.ok) {
             settings = await response.json();
@@ -237,6 +247,10 @@ async function saveAppSettings() {
     
     settings.learning_language = document.getElementById("setting-learning-lang").value;
     settings.local_storage_path = document.getElementById("setting-storage-path").value.trim();
+    
+    // Save theme setting
+    const selectedTheme = document.getElementById("setting-screen-theme").value;
+    applyScreenTheme(selectedTheme);
     
     try {
         const response = await fetch(`${BACKEND_URL}/api/settings`, {
@@ -424,8 +438,24 @@ function resetEvaluationDisplay() {
     currentAudioUrl = null;
     wordPlaybackStopTime = null;
     
-    document.getElementById("btn-func-stop").disabled = true;
-    document.getElementById("btn-func-evaluate").disabled = false;
+    // Reset evaluation and recording button states
+    const btnStop = document.getElementById("btn-func-stop");
+    if (btnStop) {
+        btnStop.disabled = true;
+        btnStop.classList.add("disabled");
+    }
+    
+    const btnEval = document.getElementById("btn-func-evaluate");
+    if (btnEval) {
+        btnEval.disabled = true; // Disabled initially until recording is complete
+        btnEval.classList.add("disabled");
+    }
+    
+    const btnRecord = document.getElementById("btn-func-record");
+    if (btnRecord) {
+        btnRecord.disabled = false;
+        btnRecord.classList.remove("disabled");
+    }
 }
 
 function restoreEvaluationFromData(data) {
@@ -624,6 +654,7 @@ function toggleTextEditMode() {
         saveBtn.classList.add("hidden");
         
         renderRawTextView(textEditor.value);
+        resetEvaluationDisplay(); // Reset evaluation display so they can record and evaluate again
     }
 }
 
@@ -826,6 +857,7 @@ async function submitAssessment() {
     formData.append("normalized_text", normalizedText);
     formData.append("audio", recordedWavBlob, "recording.wav");
     
+    let success = false;
     try {
         const response = await fetch(`${BACKEND_URL}/api/evaluate`, {
             method: "POST",
@@ -835,6 +867,14 @@ async function submitAssessment() {
         if (response.ok) {
             const evalResult = await response.json();
             restoreEvaluationFromData(evalResult);
+            success = true;
+            
+            // Disable 녹음 button
+            const btnRecord = document.getElementById("btn-func-record");
+            if (btnRecord) {
+                btnRecord.disabled = true;
+                btnRecord.classList.add("disabled");
+            }
         } else {
             const err = await response.json();
             alert(`평가 오류: ${err.detail || "서버 통신 오류"}`);
@@ -843,8 +883,17 @@ async function submitAssessment() {
         console.error("Evaluation exception:", err);
         alert("서버 통신 실패");
     } finally {
-        btn.innerHTML = "<i class='fa-solid fa-square-poll-vertical'></i> 평가";
-        btn.disabled = false;
+        const btnEval = document.getElementById("btn-func-evaluate");
+        if (btnEval) {
+            btnEval.innerHTML = "<i class='fa-solid fa-square-poll-vertical'></i> 평가";
+            if (success) {
+                btnEval.disabled = true;
+                btnEval.classList.add("disabled");
+            } else {
+                btnEval.disabled = false;
+                btnEval.classList.remove("disabled");
+            }
+        }
     }
 }
 
@@ -1079,6 +1128,19 @@ async function loginWithGoogle() {
         alert("Google 로그인 과정에서 오류가 발생했습니다: " + error.message);
     }
 }
+
+// -----------------
+// Theme Management helper
+// -----------------
+function applyScreenTheme(theme) {
+    if (theme === "white") {
+        document.body.classList.add("theme-white");
+    } else {
+        document.body.classList.remove("theme-white");
+    }
+    localStorage.setItem("screen_theme", theme);
+}
+
 
 
 

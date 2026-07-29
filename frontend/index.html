@@ -70,15 +70,36 @@
                 <div class="header-action-row">
                     <button class="btn btn-nav-func" id="btn-func-manual" onclick="window.open('/VoiceTutor_User_Manual_v2.pdf', '_blank')"><i class="fa-solid fa-circle-question"></i> 사용설명서</button>
                     <button class="btn btn-nav-func" id="btn-func-open-file" onclick="toggleDrawer('file-upload', true)"><i class="fa-solid fa-folder-open"></i> 파일열기</button>
-                    <button class="btn btn-nav-func" id="btn-func-extract" onclick="toggleDrawer('extract-pdf', true)"><i class="fa-solid fa-file-export"></i> 변환</button>
+                    <button class="btn btn-nav-func" id="btn-func-extract" onclick="toggleDrawer('extract-pdf', true)" style="display: none;"><i class="fa-solid fa-file-export"></i> 변환</button>
                     <button class="btn btn-nav-func" id="btn-func-record" onclick="startMobileRecording()"><i class="fa-solid fa-microphone"></i> 녹음</button>
                     <button class="btn btn-nav-func disabled" id="btn-func-stop" onclick="stopMobileRecording()" disabled><i class="fa-solid fa-stop"></i> 중지</button>
                     <button class="btn btn-nav-func disabled" id="btn-func-evaluate" onclick="submitAssessment()" disabled><i class="fa-solid fa-square-poll-vertical"></i> 평가</button>
                 </div>
-                <div class="recording-status-indicator stopped" id="recording-status-indicator" title="녹음 상태 표시">
-                    <i class="fa-solid fa-stop" id="icon-recording-status"></i>
+                <div class="header-right-indicator" style="display: flex; align-items: center;">
+                    <span id="recording-timer-countdown" class="timer-warning hidden" style="margin-right: 8px; font-weight: 600; color: var(--color-low); font-size: 0.9rem; display: flex; align-items: center; gap: 4px;"><i class="fa-regular fa-clock"></i> 2:00</span>
+                    <div class="recording-status-indicator stopped" id="recording-status-indicator" title="녹음 상태 표시">
+                        <i class="fa-solid fa-stop" id="icon-recording-status"></i>
+                    </div>
                 </div>
             </header>
+
+            <!-- Top Row details (Feedback and overall score) -->
+            <section class="practice-top-row">
+                <!-- Feedback reports -->
+                <div class="bottom-feedback-box">
+                    <div class="bottom-box-title">종합 피드백 리포트</div>
+                    <div class="bottom-box-content" id="stat-summary-feedback">
+                        평가를 진행하시면 이곳에 오발음 분석 리포트가 표시됩니다.
+                    </div>
+                </div>
+
+                <!-- Big Score -->
+                <div class="bottom-score-box">
+                    <div class="overall-circle-score" id="stat-overall-score">
+                        --
+                    </div>
+                </div>
+            </section>
 
             <!-- Main Reading & Highlights Area -->
             <main class="practice-workspace">
@@ -108,28 +129,9 @@
 
                     <div class="card-footer-info">
                         <span id="char-counter-text">글자수: 0</span>
-                        <span id="recording-timer-countdown" class="timer-warning hidden"><i class="fa-regular fa-clock"></i> 2:00</span>
                     </div>
                 </div>
             </main>
-
-            <!-- Bottom Row details (Feedback and overall score) -->
-            <section class="practice-bottom-row">
-                <!-- Feedback reports -->
-                <div class="bottom-feedback-box">
-                    <div class="bottom-box-title">종합 피드백 리포트</div>
-                    <div class="bottom-box-content" id="stat-summary-feedback">
-                        평가를 진행하시면 이곳에 오발음 분석 리포트가 표시됩니다.
-                    </div>
-                </div>
-
-                <!-- Big Score -->
-                <div class="bottom-score-box">
-                    <div class="overall-circle-score" id="stat-overall-score">
-                        --
-                    </div>
-                </div>
-            </section>
 
             <!-- Bottom Settings / Exit Footer -->
             <footer class="practice-footer">
@@ -328,6 +330,15 @@
                             <option value="ja-JP">일본어 (ja-JP)</option>
                             <option value="en-US">영어 (en-US)</option>
                             <option value="ko-KR">한국어 (ko-KR)</option>
+                        </select>
+                    </div>
+
+                    <!-- Theme configuration -->
+                    <div class="form-group">
+                        <label class="form-label" for="setting-screen-theme">화면 테마 설정</label>
+                        <select id="setting-screen-theme" class="form-input" style="background-color: var(--bg-secondary)" onchange="applyScreenTheme(this.value)">
+                            <option value="black">블랙 (기본)</option>
+                            <option value="white">화이트</option>
                         </select>
                     </div>
 
