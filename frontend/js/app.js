@@ -676,6 +676,9 @@ function toggleTextEditMode() {
         
         renderRawTextView(textEditor.value);
         resetEvaluationDisplay(); // Reset evaluation display so they can record and evaluate again
+        
+        // Auto-save the text!
+        saveEditedText();
     }
 }
 

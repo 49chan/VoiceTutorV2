@@ -172,9 +172,12 @@ def api_save_text(req: SaveTextRequest):
         if settings.google_drive_folder_id:
             try:
                 try:
-                    from google_drive import upload_file_to_drive
+                    from api.google_drive import upload_file_to_drive
                 except ImportError:
-                    from backend.google_drive import upload_file_to_drive
+                    try:
+                        from google_drive import upload_file_to_drive
+                    except ImportError:
+                        from backend.google_drive import upload_file_to_drive
                 upload_file_to_drive(
                     file_content=req.text.encode("utf-8"),
                     filename=target_filename,
@@ -298,9 +301,12 @@ def upload_eval_assets_to_drive(settings, payload, out_json_name, out_mp3_path, 
     try:
         import json
         try:
-            from google_drive import upload_file_to_drive
+            from api.google_drive import upload_file_to_drive
         except ImportError:
-            from backend.google_drive import upload_file_to_drive
+            try:
+                from google_drive import upload_file_to_drive
+            except ImportError:
+                from backend.google_drive import upload_file_to_drive
         
         # 1. Upload JSON report
         json_data = json.dumps(payload, ensure_ascii=False, indent=2).encode("utf-8")
