@@ -14,3 +14,7 @@
   - [x] frontend/index.html of `practice-bottom-row` 레이아웃을 `practice-top-row`로 변경 및 위치를 상단으로 이동
   - [x] frontend/css/style.css에서 `practice-bottom-row` 스타일을 `practice-top-row`에 맞게 변경 및 여백 조율
   - [x] frontend/js/app.js의 `toggleTextEditMode()`에서 편집 모드 탈출 시 `resetEvaluationDisplay()`를 호출하여 `btn-func-record` 재활성화 및 화면 리셋 구현
+- [x] 5. JSON 파일 로드 시 추가 개선 및 스크롤 최적화
+  - [x] JSON 로드 시 연필 버튼(편집 기능) 비활성화 및 다른 파일 로드/추출 시 활성화
+  - [x] workspace 및 card 요소에 min-height: 0 적용하여 스크롤 활성화 및 하단 버튼 가림 해결
+  - [x] 라이트 테마 시 점수 가독성 향상을 위해 그라데이션 시작 색상 변수화

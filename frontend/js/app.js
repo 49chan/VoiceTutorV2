@@ -345,6 +345,13 @@ function handleFileImport(input) {
                 }
             });
             
+            // Re-enable edit button
+            const btnEdit = document.getElementById("btn-edit-text-toggle");
+            if (btnEdit) {
+                btnEdit.disabled = false;
+                btnEdit.classList.remove("disabled");
+            }
+            
             alert(`교재 텍스트 파일 (.txt) 로드 완료!\n녹음 버튼을 눌러 연습을 시작해 주세요.`);
         };
         reader.readAsText(file, "utf-8");
@@ -372,6 +379,13 @@ function handleFileImport(input) {
                         btn.classList.add("disabled");
                     }
                 });
+                
+                // Disable edit button for static json log
+                const btnEdit = document.getElementById("btn-edit-text-toggle");
+                if (btnEdit) {
+                    btnEdit.disabled = true;
+                    btnEdit.classList.add("disabled");
+                }
                 
                 alert(`이력 결과 파일 (.json) 복원 완료!\n단어를 클릭하면 녹음 구간을 들을 수 있습니다.`);
             } catch (err) {
@@ -470,11 +484,11 @@ function restoreEvaluationFromData(data) {
     overallDisplay.textContent = score.toFixed(1);
     
     if (score >= 85) {
-        overallDisplay.style.background = "linear-gradient(135deg, #ffffff 40%, var(--color-high) 100%)";
+        overallDisplay.style.background = "linear-gradient(135deg, var(--score-gradient-start) 40%, var(--color-high) 100%)";
     } else if (score >= 60) {
-        overallDisplay.style.background = "linear-gradient(135deg, #ffffff 40%, var(--color-mid) 100%)";
+        overallDisplay.style.background = "linear-gradient(135deg, var(--score-gradient-start) 40%, var(--color-mid) 100%)";
     } else {
-        overallDisplay.style.background = "linear-gradient(135deg, #ffffff 40%, var(--color-low) 100%)";
+        overallDisplay.style.background = "linear-gradient(135deg, var(--score-gradient-start) 40%, var(--color-low) 100%)";
     }
     overallDisplay.style.webkitTextFillColor = "transparent";
     overallDisplay.style.webkitBackgroundClip = "text";
@@ -593,6 +607,13 @@ async function runPdfPageExtraction() {
                     btn.classList.add("disabled");
                 }
             });
+            
+            // Re-enable edit button
+            const btnEdit = document.getElementById("btn-edit-text-toggle");
+            if (btnEdit) {
+                btnEdit.disabled = false;
+                btnEdit.classList.remove("disabled");
+            }
             
             toggleDrawer('extract-pdf', false);
             alert(`PDF p.${pageNum} 문자 추출이 정상 완료되었습니다!\n텍스트에 오류가 있다면 수정하실 수 있습니다.`);

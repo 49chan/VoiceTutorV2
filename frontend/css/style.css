@@ -25,6 +25,8 @@
     --radius-lg: 20px;
     --radius-md: 12px;
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    
+    --score-gradient-start: #ffffff;
 }
 
 * {
@@ -329,6 +331,7 @@ body {
     padding: 15px;
     display: flex;
     flex-direction: column;
+    min-height: 0;
 }
 
 .practice-card {
@@ -342,6 +345,7 @@ body {
     box-shadow: 0 8px 24px rgba(0,0,0,0.3);
     position: relative;
     overflow: hidden;
+    min-height: 0;
 }
 
 .card-top-info {
@@ -510,7 +514,7 @@ body {
 .overall-circle-score {
     font-size: 2.2rem;
     font-weight: 800;
-    background: linear-gradient(135deg, #ffffff 40%, var(--color-primary) 100%);
+    background: linear-gradient(135deg, var(--score-gradient-start) 40%, var(--color-primary) 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
 }
@@ -790,6 +794,7 @@ body.theme-white {
     --text-main: #1f2937;
     --text-muted: #4b5563;
     --border-light: rgba(0, 0, 0, 0.08);
+    --score-gradient-start: #1f2937;
     background-image: 
         radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.05) 0px, transparent 50%),
         radial-gradient(at 100% 100%, rgba(16, 185, 129, 0.03) 0px, transparent 50%);
