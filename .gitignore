@@ -11,3 +11,5 @@ backend/settings.json
 backend/.secret.key
 *google_drive_key.json
 *key.json
+.env
+api/settings.json

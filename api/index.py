@@ -3,6 +3,7 @@ import os
 import json
 import wave
 import shutil
+import asyncio
 import logging
 from datetime import datetime
 from typing import Optional, List
@@ -152,7 +153,7 @@ class SaveTextRequest(BaseModel):
 def api_save_text(req: SaveTextRequest):
     """Saves manually edited raw text to a .txt file in the local storage directory."""
     settings = load_settings()
-    storage_path = settings.local_storage_path or get_default_storage_path()
+    storage_path = get_default_storage_path()
     os.makedirs(storage_path, exist_ok=True)
     
     base_name = os.path.splitext(req.file_name)[0]
@@ -172,9 +173,12 @@ def api_save_text(req: SaveTextRequest):
         if settings.google_drive_folder_id:
             try:
                 try:
-                    from google_drive import upload_file_to_drive
+                    from api.google_drive import upload_file_to_drive
                 except ImportError:
-                    from backend.google_drive import upload_file_to_drive
+                    try:
+                        from google_drive import upload_file_to_drive
+                    except ImportError:
+                        from backend.google_drive import upload_file_to_drive
                 upload_file_to_drive(
                     file_content=req.text.encode("utf-8"),
                     filename=target_filename,
@@ -298,9 +302,12 @@ def upload_eval_assets_to_drive(settings, payload, out_json_name, out_mp3_path, 
     try:
         import json
         try:
-            from google_drive import upload_file_to_drive
+            from api.google_drive import upload_file_to_drive
         except ImportError:
-            from backend.google_drive import upload_file_to_drive
+            try:
+                from google_drive import upload_file_to_drive
+            except ImportError:
+                from backend.google_drive import upload_file_to_drive
         
         # 1. Upload JSON report
         json_data = json.dumps(payload, ensure_ascii=False, indent=2).encode("utf-8")
@@ -324,6 +331,49 @@ def upload_eval_assets_to_drive(settings, payload, out_json_name, out_mp3_path, 
     except Exception as e:
         logger.error(f"Background Google Drive asset upload failed: {e}")
 
+@app.post("/api/save-recording")
+async def api_save_recording(
+    file_name: str = Form(...),
+    page_number: int = Form(...),
+    audio: UploadFile = File(...)
+):
+    """
+    중지 버튼 시 호출. WAV를 받아 MP3로 변환 후 recordings 폴더에 저장.
+    평가 시 재사용할 수 있도록 version_int와 mp3_filename을 반환.
+    """
+    storage_path = get_default_storage_path()
+    os.makedirs(storage_path, exist_ok=True)
+
+    temp_wav_path = os.path.join(TEMP_DIR, f"rec_{datetime.now().timestamp()}.wav")
+    try:
+        with open(temp_wav_path, "wb") as buffer:
+            shutil.copyfileobj(audio.file, buffer)
+
+        # 파일명 정리 및 버전 산출
+        base_filename = os.path.splitext(file_name)[0]
+        base_filename = "".join(c for c in base_filename if c.isalnum() or c in ("-", "_")).strip()
+        base_name_with_page = f"{base_filename}_p{page_number}"
+        version_int, version_str = get_next_version(storage_path, base_name_with_page)
+
+        out_mp3_name = f"{base_name_with_page}_{version_str}.mp3"
+        out_mp3_path = os.path.join(storage_path, out_mp3_name)
+
+        convert_wav_to_mp3(temp_wav_path, out_mp3_path)
+        logger.info(f"Recording saved: {out_mp3_name}")
+
+        return {
+            "mp3_filename": out_mp3_name,
+            "version": version_int,
+            "base_name_with_page": base_name_with_page
+        }
+    except Exception as e:
+        logger.error(f"save-recording failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Recording save failed: {str(e)}")
+    finally:
+        if os.path.exists(temp_wav_path):
+            os.remove(temp_wav_path)
+
+
 @app.post("/api/evaluate")
 async def api_evaluate(
     background_tasks: BackgroundTasks,
@@ -331,7 +381,8 @@ async def api_evaluate(
     page_number: int = Form(...),
     raw_text: str = Form(...),
     normalized_text: str = Form(...),
-    audio: UploadFile = File(...)
+    audio: UploadFile = File(...),
+    pre_saved_version: Optional[int] = Form(None)
 ):
     """
     Core pipeline:
@@ -343,7 +394,7 @@ async def api_evaluate(
     6. Dispatches background worker task to update Google Sheets.
     """
     settings = load_settings()
-    storage_path = settings.local_storage_path or get_default_storage_path()
+    storage_path = get_default_storage_path()
     os.makedirs(storage_path, exist_ok=True)
     
     # Secure raw audio WAV payload to temp directory
@@ -362,12 +413,14 @@ async def api_evaluate(
         if has_azure:
             logger.info("Azure Speech API Keys found. Running real pronunciation assessment.")
             try:
-                eval_result = run_pronunciation_assessment(
-                    subscription_key=settings.azure_speech_key,
-                    region=settings.azure_speech_region,
-                    language_code=lang,
-                    reference_text=normalized_text,
-                    audio_file_path=temp_wav_path
+                # asyncio.to_thread: 동기 블로킹 Azure SDK 호출을 스레드풀에서 실행 (이벤트 루프 차단 방지)
+                eval_result = await asyncio.to_thread(
+                    run_pronunciation_assessment,
+                    settings.azure_speech_key,
+                    settings.azure_speech_region,
+                    lang,
+                    normalized_text,
+                    temp_wav_path
                 )
             except Exception as ex:
                 logger.error(f"Azure Pronunciation Assessment crashed: {ex}. Falling back to Simulator.")
@@ -381,19 +434,24 @@ async def api_evaluate(
         # Clean special chars from filename
         base_filename = "".join(c for c in base_filename if c.isalnum() or c in ("-", "_")).strip()
         base_name_with_page = f"{base_filename}_p{page_number}"
-        
-        # Get next version number
-        version_int, version_str = get_next_version(storage_path, base_name_with_page)
-        
+
+        # 중지 버튼 시 이미 저장된 버전이 있으면 해당 버전 재사용 (MP3 중복 생성 방지)
+        if pre_saved_version is not None:
+            version_int = pre_saved_version
+            version_str = f"{version_int:02d}"
+        else:
+            version_int, version_str = get_next_version(storage_path, base_name_with_page)
+
         # Create output filenames
         out_json_name = f"{base_name_with_page}_{version_str}.json"
         out_mp3_name = f"{base_name_with_page}_{version_str}.mp3"
-        
+
         out_json_path = os.path.join(storage_path, out_json_name)
         out_mp3_path = os.path.join(storage_path, out_mp3_name)
-        
-        # Convert WAV upload to MP3
-        convert_wav_to_mp3(temp_wav_path, out_mp3_path)
+
+        # pre_saved_version이 없으면 WAV → MP3 변환 (중지 버튼을 쓰지 않은 경우 fallback)
+        if not os.path.exists(out_mp3_path):
+            convert_wav_to_mp3(temp_wav_path, out_mp3_path)
         
         # Generate summary feedback & timestamps
         created_at_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -448,31 +506,8 @@ async def api_evaluate(
                 )
             
         # 5. Queue Background Webhook Task for Google Sheets Row Insertion
-        if settings.google_sheets_webhook_url:
-            if os.environ.get("VERCEL"):
-                logger.info("Awaiting Google Sheets Append inline (Vercel serverless environment).")
-                try:
-                    await append_evaluation_row(
-                        settings.google_sheets_webhook_url,
-                        file_name,
-                        version_int,
-                        overall_score,
-                        created_at_str,
-                        feedback
-                    )
-                except Exception as ex:
-                    logger.error(f"Inline Google Sheets append failed: {ex}")
-            else:
-                logger.info("Scheduling Google Sheets Append background task.")
-                background_tasks.add_task(
-                    append_evaluation_row,
-                    settings.google_sheets_webhook_url,
-                    file_name,
-                    version_int,
-                    overall_score,
-                    created_at_str,
-                    feedback
-                )
+        # Disabled in favor of client-side Supabase insertion
+        pass
             
         return payload
         
@@ -489,7 +524,7 @@ async def api_evaluate(
 def api_get_history():
     """Lists all saved evaluation JSON files ordered by creation date descending."""
     settings = load_settings()
-    storage_path = settings.local_storage_path or get_default_storage_path()
+    storage_path = get_default_storage_path()
     
     if not os.path.exists(storage_path):
         return []
@@ -524,7 +559,7 @@ def api_get_history():
 def api_get_history_detail(filename: str):
     """Retrieves full JSON details of a specific historical evaluation log."""
     settings = load_settings()
-    storage_path = settings.local_storage_path or get_default_storage_path()
+    storage_path = get_default_storage_path()
     file_path = os.path.join(storage_path, filename)
     
     if not os.path.exists(file_path) or not filename.lower().endswith(".json"):
@@ -540,7 +575,7 @@ def api_get_history_detail(filename: str):
 def api_get_history_audio(filename: str):
     """Streams the saved evaluation MP3 file from local storage."""
     settings = load_settings()
-    storage_path = settings.local_storage_path or get_default_storage_path()
+    storage_path = get_default_storage_path()
     file_path = os.path.join(storage_path, filename)
     
     # Strip path injections

@@ -24,6 +24,9 @@ let isLoggedIn = false;
 // Audio Recorder Instance
 let recorder = new AudioRecorder();
 
+// 중지 후 저장된 MP3 정보 (평가 시 재사용)
+let savedRecordingInfo = null;
+
 // Settings schema
 let settings = {
     learning_language: "ja-JP",
@@ -34,6 +37,10 @@ let settings = {
 
 // Initial setup
 document.addEventListener("DOMContentLoaded", async () => {
+    // Apply saved screen theme immediately
+    const savedTheme = localStorage.getItem("screen_theme") || "black";
+    applyScreenTheme(savedTheme);
+
     loadAppSettings();
     initAudioPlayerEvents();
     
@@ -178,6 +185,12 @@ function toggleDrawer(drawerId, show) {
 // -----------------
 async function loadAppSettings() {
     try {
+        // Restore saved screen theme
+        const savedTheme = localStorage.getItem("screen_theme") || "black";
+        applyScreenTheme(savedTheme);
+        const themeSelect = document.getElementById("setting-screen-theme");
+        if (themeSelect) themeSelect.value = savedTheme;
+
         const response = await fetch(`${BACKEND_URL}/api/settings`);
         if (response.ok) {
             settings = await response.json();
@@ -237,6 +250,10 @@ async function saveAppSettings() {
     
     settings.learning_language = document.getElementById("setting-learning-lang").value;
     settings.local_storage_path = document.getElementById("setting-storage-path").value.trim();
+    
+    // Save theme setting
+    const selectedTheme = document.getElementById("setting-screen-theme").value;
+    applyScreenTheme(selectedTheme);
     
     try {
         const response = await fetch(`${BACKEND_URL}/api/settings`, {
@@ -331,6 +348,13 @@ function handleFileImport(input) {
                 }
             });
             
+            // Re-enable edit button
+            const btnEdit = document.getElementById("btn-edit-text-toggle");
+            if (btnEdit) {
+                btnEdit.disabled = false;
+                btnEdit.classList.remove("disabled");
+            }
+            
             alert(`교재 텍스트 파일 (.txt) 로드 완료!\n녹음 버튼을 눌러 연습을 시작해 주세요.`);
         };
         reader.readAsText(file, "utf-8");
@@ -358,6 +382,13 @@ function handleFileImport(input) {
                         btn.classList.add("disabled");
                     }
                 });
+                
+                // Disable edit button for static json log
+                const btnEdit = document.getElementById("btn-edit-text-toggle");
+                if (btnEdit) {
+                    btnEdit.disabled = true;
+                    btnEdit.classList.add("disabled");
+                }
                 
                 alert(`이력 결과 파일 (.json) 복원 완료!\n단어를 클릭하면 녹음 구간을 들을 수 있습니다.`);
             } catch (err) {
@@ -423,9 +454,26 @@ function resetEvaluationDisplay() {
     recordedWavBlob = null;
     currentAudioUrl = null;
     wordPlaybackStopTime = null;
+    savedRecordingInfo = null; // 이전 녹음 세션 저장 정보 초기화
     
-    document.getElementById("btn-func-stop").disabled = true;
-    document.getElementById("btn-func-evaluate").disabled = false;
+    // Reset evaluation and recording button states
+    const btnStop = document.getElementById("btn-func-stop");
+    if (btnStop) {
+        btnStop.disabled = true;
+        btnStop.classList.add("disabled");
+    }
+    
+    const btnEval = document.getElementById("btn-func-evaluate");
+    if (btnEval) {
+        btnEval.disabled = true; // Disabled initially until recording is complete
+        btnEval.classList.add("disabled");
+    }
+    
+    const btnRecord = document.getElementById("btn-func-record");
+    if (btnRecord) {
+        btnRecord.disabled = false;
+        btnRecord.classList.remove("disabled");
+    }
 }
 
 function restoreEvaluationFromData(data) {
@@ -440,11 +488,11 @@ function restoreEvaluationFromData(data) {
     overallDisplay.textContent = score.toFixed(1);
     
     if (score >= 85) {
-        overallDisplay.style.background = "linear-gradient(135deg, #ffffff 40%, var(--color-high) 100%)";
+        overallDisplay.style.background = "linear-gradient(135deg, var(--score-gradient-start) 40%, var(--color-high) 100%)";
     } else if (score >= 60) {
-        overallDisplay.style.background = "linear-gradient(135deg, #ffffff 40%, var(--color-mid) 100%)";
+        overallDisplay.style.background = "linear-gradient(135deg, var(--score-gradient-start) 40%, var(--color-mid) 100%)";
     } else {
-        overallDisplay.style.background = "linear-gradient(135deg, #ffffff 40%, var(--color-low) 100%)";
+        overallDisplay.style.background = "linear-gradient(135deg, var(--score-gradient-start) 40%, var(--color-low) 100%)";
     }
     overallDisplay.style.webkitTextFillColor = "transparent";
     overallDisplay.style.webkitBackgroundClip = "text";
@@ -564,6 +612,13 @@ async function runPdfPageExtraction() {
                 }
             });
             
+            // Re-enable edit button
+            const btnEdit = document.getElementById("btn-edit-text-toggle");
+            if (btnEdit) {
+                btnEdit.disabled = false;
+                btnEdit.classList.remove("disabled");
+            }
+            
             toggleDrawer('extract-pdf', false);
             alert(`PDF p.${pageNum} 문자 추출이 정상 완료되었습니다!\n텍스트에 오류가 있다면 수정하실 수 있습니다.`);
         } else {
@@ -624,13 +679,17 @@ function toggleTextEditMode() {
         saveBtn.classList.add("hidden");
         
         renderRawTextView(textEditor.value);
+        resetEvaluationDisplay(); // Reset evaluation display so they can record and evaluate again
+        
+        // Auto-save the text! (silent: alert 없이 저장)
+        saveEditedText(true);
     }
 }
 
-async function saveEditedText() {
+async function saveEditedText(silent = false) {
     const rawText = document.getElementById("raw-text-editor").value.trim();
     if (!rawText) {
-        alert("저장할 텍스트 내용이 없습니다.");
+        if (!silent) alert("저장할 텍스트 내용이 없습니다.");
         return;
     }
     
@@ -646,13 +705,17 @@ async function saveEditedText() {
         
         if (response.ok) {
             const res = await response.json();
-            alert(`수정된 텍스트가 [${res.file_name}] 파일로 지정된 저장 폴더에 저장되었습니다!`);
+            if (!silent) {
+                alert(`수정된 텍스트가 [${res.file_name}] 파일로 지정된 저장 폴더에 저장되었습니다!`);
+            } else {
+                console.log(`텍스트 자동 저장 완료: ${res.file_name}`);
+            }
         } else {
-            alert("텍스트 파일 저장에 실패했습니다.");
+            if (!silent) alert("텍스트 파일 저장에 실패했습니다.");
         }
     } catch (err) {
         console.error("Save edited text network error:", err);
-        alert("서버 연결 실패");
+        if (!silent) alert("서버 연결 실패");
     }
 }
 
@@ -778,6 +841,29 @@ async function stopMobileRecording() {
         document.getElementById("evaluation-audio-player").src = currentAudioUrl;
         
         console.log("Recorded WAV Blob size:", recordedWavBlob.size);
+
+        // 중지 즉시 MP3 저장 요청 (백그라운드, 평가와 무관하게 파일 생성)
+        savedRecordingInfo = null;
+        try {
+            const rawText = document.getElementById("raw-text-editor").value.trim();
+            const saveForm = new FormData();
+            saveForm.append("file_name", activeFilename);
+            saveForm.append("page_number", activePageNumber);
+            saveForm.append("audio", recordedWavBlob, "recording.wav");
+
+            const saveRes = await fetch(`${BACKEND_URL}/api/save-recording`, {
+                method: "POST",
+                body: saveForm
+            });
+            if (saveRes.ok) {
+                savedRecordingInfo = await saveRes.json();
+                console.log("녹음 파일 저장 완료:", savedRecordingInfo);
+            } else {
+                console.warn("녹음 파일 저장 실패 (평가 시 재변환됩니다).");
+            }
+        } catch (saveErr) {
+            console.warn("녹음 저장 요청 에러:", saveErr);
+        }
     } catch (err) {
         console.error("Recording stop error:", err);
         btnRecord.disabled = false;
@@ -825,7 +911,14 @@ async function submitAssessment() {
     const normalizedText = quickNormalizeText(rawText);
     formData.append("normalized_text", normalizedText);
     formData.append("audio", recordedWavBlob, "recording.wav");
+
+    // 중지 시 저장된 버전이 있으면 evaluate에 전달 (MP3 중복 생성 방지)
+    if (savedRecordingInfo && savedRecordingInfo.version != null) {
+        formData.append("pre_saved_version", savedRecordingInfo.version);
+        console.log("pre_saved_version 전달:", savedRecordingInfo.version);
+    }
     
+    let success = false;
     try {
         const response = await fetch(`${BACKEND_URL}/api/evaluate`, {
             method: "POST",
@@ -835,6 +928,60 @@ async function submitAssessment() {
         if (response.ok) {
             const evalResult = await response.json();
             restoreEvaluationFromData(evalResult);
+            success = true;
+            savedRecordingInfo = null; // 평가 완료 후 초기화
+            
+            // Disable 녹음 button
+            const btnRecord = document.getElementById("btn-func-record");
+            if (btnRecord) {
+                btnRecord.disabled = true;
+                btnRecord.classList.add("disabled");
+            }
+
+            // Supabase user_records 테이블 적재
+            if (supabaseClient) {
+                try {
+                    const sessionRes = await supabaseClient.auth.getSession();
+                    const session = sessionRes.data?.session;
+                    const userId = session?.user?.id;
+                    if (userId) {
+                        // 1. 동일 textbook에 대해 기존 최대 testcount 조회
+                        const { data: existingRecords, error: fetchError } = await supabaseClient
+                            .from('user_records')
+                            .select('testcount')
+                            .eq('user_id', userId)
+                            .eq('textbook', activeFilename)
+                            .order('testcount', { ascending: false })
+                            .limit(1);
+
+                        if (fetchError) throw fetchError;
+
+                        let nextTestCount = 1;
+                        if (existingRecords && existingRecords.length > 0) {
+                            nextTestCount = (existingRecords[0].testcount || 0) + 1;
+                        }
+
+                        // 2. user_records 테이블에 데이터 삽입 (소문자 스키마 사용, created_at/updated_at은 now() 자동 지정 생략)
+                        const { error: insertError } = await supabaseClient
+                            .from('user_records')
+                            .insert([{
+                                user_id: userId,
+                                record_type: 'test',
+                                textbook: activeFilename,
+                                testcount: nextTestCount,
+                                score: Math.round(evalResult.overall_score),
+                                feedback: evalResult.summary_feedback
+                            }]);
+
+                        if (insertError) throw insertError;
+                        console.log(`Supabase user_records 적재 성공! (textbook: ${activeFilename}, testcount: ${nextTestCount})`);
+                    } else {
+                        console.warn("Supabase user_id를 찾을 수 없습니다. 로그인 상태를 확인하세요.");
+                    }
+                } catch (supaErr) {
+                    console.error("Supabase user_records 적재 중 오류 발생:", supaErr);
+                }
+            }
         } else {
             const err = await response.json();
             alert(`평가 오류: ${err.detail || "서버 통신 오류"}`);
@@ -843,8 +990,17 @@ async function submitAssessment() {
         console.error("Evaluation exception:", err);
         alert("서버 통신 실패");
     } finally {
-        btn.innerHTML = "<i class='fa-solid fa-square-poll-vertical'></i> 평가";
-        btn.disabled = false;
+        const btnEval = document.getElementById("btn-func-evaluate");
+        if (btnEval) {
+            btnEval.innerHTML = "<i class='fa-solid fa-square-poll-vertical'></i> 평가";
+            if (success) {
+                btnEval.disabled = true;
+                btnEval.classList.add("disabled");
+            } else {
+                btnEval.disabled = false;
+                btnEval.classList.remove("disabled");
+            }
+        }
     }
 }
 
@@ -1079,6 +1235,19 @@ async function loginWithGoogle() {
         alert("Google 로그인 과정에서 오류가 발생했습니다: " + error.message);
     }
 }
+
+// -----------------
+// Theme Management helper
+// -----------------
+function applyScreenTheme(theme) {
+    if (theme === "white") {
+        document.body.classList.add("theme-white");
+    } else {
+        document.body.classList.remove("theme-white");
+    }
+    localStorage.setItem("screen_theme", theme);
+}
+
 
 
 
