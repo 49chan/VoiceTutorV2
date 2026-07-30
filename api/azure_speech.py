@@ -60,89 +60,93 @@ def run_pronunciation_assessment(
         audio_config=audio_config
     )
     
-    # Configure Pronunciation Assessment
-    pron_config = speechsdk.PronunciationAssessmentConfig(
-        reference_text=reference_text,
-        grading_system=speechsdk.PronunciationAssessmentGradingSystem.HundredPoint,
-        granularity=speechsdk.PronunciationAssessmentGranularity.Word,
-        enable_miscue=False  # Typically False in continuous mode
-    )
-    pron_config.apply_to(speech_recognizer)
-    
-    # Thread-safe structures for event collection
-    all_words = []
-    recognized_texts = []
-    done = False
-    error_occurred = False
-    error_message = ""
-    
-    # Callbacks
-    def recognized_cb(evt):
-        if evt.result.reason == speechsdk.ResultReason.RecognizedSpeech:
-            json_str = evt.result.properties.get(speechsdk.PropertyId.SpeechServiceResponse_JsonResult)
-            if json_str:
-                try:
-                    res_json = json.loads(json_str)
-                    nbest = res_json.get("NBest", [])
-                    if nbest:
-                        best = nbest[0]
-                        words = best.get("Words", [])
-                        pron_assessment = best.get("PronunciationAssessment", {})
-                        
-                        # Extract individual words
-                        for w in words:
-                            word_text = w.get("Word")
-                            offset = w.get("Offset")
-                            duration = w.get("Duration")
-                            
-                            pa = w.get("PronunciationAssessment", {})
-                            accuracy_score = pa.get("AccuracyScore", 100.0)
-                            error_type = pa.get("ErrorType", "None")
-                            
-                            all_words.append({
-                                "Word": word_text,
-                                "Offset": offset,       # Ticks (100 nanoseconds)
-                                "Duration": duration,   # Ticks (100 nanoseconds)
-                                "AccuracyScore": accuracy_score,
-                                "ErrorType": error_type
-                            })
-                        recognized_texts.append(best.get("Display", ""))
-                except Exception as ex:
-                    logger.error(f"Error parsing recognized JSON chunk: {ex}")
-                    
-    def session_stopped_cb(evt):
-        nonlocal done
-        done = True
+    try:
+        # Configure Pronunciation Assessment
+        pron_config = speechsdk.PronunciationAssessmentConfig(
+            reference_text=reference_text,
+            grading_system=speechsdk.PronunciationAssessmentGradingSystem.HundredMark,
+            granularity=speechsdk.PronunciationAssessmentGranularity.Word,
+            enable_miscue=False  # Typically False in continuous mode
+        )
+        pron_config.apply_to(speech_recognizer)
         
-    def canceled_cb(evt):
-        nonlocal done, error_occurred, error_message
-        done = True
-        if evt.reason == speechsdk.CancellationReason.Error:
-            error_occurred = True
-            error_message = evt.error_details
-            logger.error(f"Azure Speech continuous recognition error: {evt.error_details}")
+        # Thread-safe structures for event collection
+        all_words = []
+        recognized_texts = []
+        done = False
+        error_occurred = False
+        error_message = ""
+        
+        # Callbacks
+        def recognized_cb(evt):
+            if evt.result.reason == speechsdk.ResultReason.RecognizedSpeech:
+                json_str = evt.result.properties.get(speechsdk.PropertyId.SpeechServiceResponse_JsonResult)
+                if json_str:
+                    try:
+                        res_json = json.loads(json_str)
+                        nbest = res_json.get("NBest", [])
+                        if nbest:
+                            best = nbest[0]
+                            words = best.get("Words", [])
+                            pron_assessment = best.get("PronunciationAssessment", {})
+                            
+                            # Extract individual words
+                            for w in words:
+                                word_text = w.get("Word")
+                                offset = w.get("Offset")
+                                duration = w.get("Duration")
+                                
+                                pa = w.get("PronunciationAssessment", {})
+                                accuracy_score = pa.get("AccuracyScore", 100.0)
+                                error_type = pa.get("ErrorType", "None")
+                                
+                                all_words.append({
+                                    "Word": word_text,
+                                    "Offset": offset,       # Ticks (100 nanoseconds)
+                                    "Duration": duration,   # Ticks (100 nanoseconds)
+                                    "AccuracyScore": accuracy_score,
+                                    "ErrorType": error_type
+                                })
+                            recognized_texts.append(best.get("Display", ""))
+                    except Exception as ex:
+                        logger.error(f"Error parsing recognized JSON chunk: {ex}")
+                        
+        def session_stopped_cb(evt):
+            nonlocal done
+            done = True
             
-    # Bind events
-    speech_recognizer.recognized.connect(recognized_cb)
-    speech_recognizer.session_stopped.connect(session_stopped_cb)
-    speech_recognizer.canceled.connect(canceled_cb)
-    
-    # Execute continuous recognition
-    speech_recognizer.start_continuous_recognition()
-    
-    # Block until completion (audio file EOF or timeout)
-    max_timeout = 240.0  # 4 minutes max for a page
-    start_time = time.time()
-    while not done:
-        time.sleep(0.2)
-        if time.time() - start_time > max_timeout:
-            speech_recognizer.stop_continuous_recognition()
-            raise TimeoutError("Azure continuous pronunciation assessment timed out.")
-            
-    speech_recognizer.stop_continuous_recognition()
-    
-    if error_occurred:
-        raise Exception(f"Azure Speech Recognition failed: {error_message}")
+        def canceled_cb(evt):
+            nonlocal done, error_occurred, error_message
+            done = True
+            if evt.reason == speechsdk.CancellationReason.Error:
+                error_occurred = True
+                error_message = evt.error_details
+                logger.error(f"Azure Speech continuous recognition error: {evt.error_details}")
+                
+        # Bind events
+        speech_recognizer.recognized.connect(recognized_cb)
+        speech_recognizer.session_stopped.connect(session_stopped_cb)
+        speech_recognizer.canceled.connect(canceled_cb)
+        
+        # Execute continuous recognition
+        speech_recognizer.start_continuous_recognition()
+        
+        # Block until completion (audio file EOF or timeout)
+        max_timeout = 240.0  # 4 minutes max for a page
+        start_time = time.time()
+        while not done:
+            time.sleep(0.2)
+            if time.time() - start_time > max_timeout:
+                speech_recognizer.stop_continuous_recognition()
+                raise TimeoutError("Azure continuous pronunciation assessment timed out.")
+                
+        speech_recognizer.stop_continuous_recognition()
+        
+        if error_occurred:
+            raise Exception(f"Azure Speech Recognition failed: {error_message}")
+    finally:
+        del speech_recognizer
+        del audio_config
         
     if not all_words:
         return {
@@ -159,9 +163,9 @@ def run_pronunciation_assessment(
     overall_score = avg_accuracy  # Fallback overall score as average word accuracy
     
     return {
-        "overall_score": round(overall_score, 1),
-        "accuracy_score": round(avg_accuracy, 1),
-        "fluency_score": round(avg_accuracy, 1),
+        "overall_score": round(overall_score),
+        "accuracy_score": round(avg_accuracy),
+        "fluency_score": round(avg_accuracy),
         "completeness_score": 100.0,
         "words": all_words,
         "recognized_text": " ".join(recognized_texts)
@@ -235,9 +239,9 @@ def run_mock_assessment(reference_text: str) -> dict:
     avg_score = sum(w["AccuracyScore"] for w in simulated_words) / len(simulated_words)
     
     return {
-        "overall_score": round(avg_score, 1),
-        "accuracy_score": round(avg_score, 1),
-        "fluency_score": round(avg_score - 2.0, 1),
+        "overall_score": round(avg_score),
+        "accuracy_score": round(avg_score),
+        "fluency_score": round(avg_score - 2.0),
         "completeness_score": 100.0,
         "words": simulated_words,
         "recognized_text": reference_text

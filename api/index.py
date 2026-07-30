@@ -455,7 +455,7 @@ async def api_evaluate(
         
         # Generate summary feedback & timestamps
         created_at_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        overall_score = eval_result.get("overall_score", 0.0)
+        overall_score = round(float(eval_result.get("overall_score", 0.0)))
         feedback = generate_feedback(overall_score, lang)
         
         # Compile complete log payload
@@ -463,9 +463,9 @@ async def api_evaluate(
             "file_name": file_name,
             "version": version_int,
             "overall_score": overall_score,
-            "accuracy_score": eval_result.get("accuracy_score", 0.0),
-            "fluency_score": eval_result.get("fluency_score", 0.0),
-            "completeness_score": eval_result.get("completeness_score", 100.0),
+            "accuracy_score": round(float(eval_result.get("accuracy_score", 0.0))),
+            "fluency_score": round(float(eval_result.get("fluency_score", 0.0))),
+            "completeness_score": round(float(eval_result.get("completeness_score", 100.0))),
             "created_at": created_at_str,
             "raw_text": raw_text,
             "normalized_text": normalized_text,
@@ -516,9 +516,12 @@ async def api_evaluate(
         raise HTTPException(status_code=500, detail=f"Pronunciation assessment pipeline error: {str(e)}")
         
     finally:
-        # Cleanup temporary WAV file
+        # Cleanup temporary WAV file safely
         if os.path.exists(temp_wav_path):
-            os.remove(temp_wav_path)
+            try:
+                os.remove(temp_wav_path)
+            except Exception as remove_err:
+                logger.warning(f"Failed to cleanup temp WAV file: {remove_err}")
 
 @app.get("/api/history")
 def api_get_history():

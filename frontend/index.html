@@ -7,9 +7,17 @@
     <meta name="description" content="AI-based mobile-first pronunciation assessment and text extraction tool.">
     <!-- Google Font & FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/style.css?v=1.0.2">
     <!-- Supabase JS Client SDK -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        /* Top Function Buttons Icon Colors */
+        #btn-func-text-input i { color: black !important; }
+        #btn-func-open-file i { color: #f59e0b !important; } /* yellow */
+        #btn-func-record i { color: #ef4444 !important; } /* red */
+        #btn-func-stop i { color: #3b82f6 !important; } /* blue */
+        #btn-func-evaluate i { color: #10b981 !important; } /* green */
+    </style>
 </head>
 <body>
     <div class="app-container">
@@ -18,9 +26,11 @@
         <!-- SCREEN 1: LANDING VIEW (첫로그인화면.png Style) -->
         <!-- ========================================== -->
         <div class="screen-view" id="screen-landing">
-            <!-- Header Links -->
             <header class="landing-header">
-                <button class="btn btn-tab-header" id="btn-board-open" onclick="toggleDrawer('board', true)">게시판</button>
+                <div style="display: flex; gap: 8px;">
+                    <button class="btn btn-tab-header" id="btn-board-open" onclick="toggleDrawer('board', true)">게시판</button>
+                    <button class="btn btn-tab-header" id="btn-landing-manual" onclick="window.open('/VoiceTutor_User_Manual_v2.pdf', '_blank')">사용설명서</button>
+                </div>
                 <div class="header-right-btns" style="display: flex; align-items: center;">
                     <!-- User Profile Info -->
                     <div id="user-profile-header" class="hidden" style="display: flex; align-items: center; gap: 8px; margin-right: 12px; border-right: 1px solid var(--border-color, rgba(255,255,255,0.15)); padding-right: 12px;">
@@ -43,6 +53,14 @@
                 
                 <div class="landing-image-container">
                     <img src="images/tutor_doc_diagram.webp" alt="TutorDoc AI Schema Illustration" class="landing-image" id="landing-schema-image">
+                </div>
+
+                <div class="landing-disclaimer" style="margin-top: 15px; font-size: 0.78rem; line-height: 1.45; color: var(--text-muted); background: rgba(120, 120, 120, 0.03); padding: 12px; border-radius: 8px; border: 1px solid var(--border-light); text-align: left; max-width: 320px; margin-left: auto; margin-right: auto; box-sizing: border-box;">
+                    <strong style="color: var(--color-primary); display: flex; align-items: center; gap: 5px; margin-bottom: 5px; font-size: 0.82rem;">
+                        <i class="fa-solid fa-circle-info"></i> 테스트 버전 작동 안내
+                    </strong>
+                    <span style="display: block; margin-bottom: 2px;">• <strong>PC</strong>: 생성된 편집(.txt), 녹음(.mp3), 평가(.json) 파일이 로컬 PC에 안전하게 자동 저장됩니다.</span>
+                    <span>• <strong>모바일</strong>: 사용 시점의 결과만 화면에 표시되며, 저장되지 않습니다. (로컬 저장은 추후 지원 예정)</span>
                 </div>
 
                 <div class="landing-action-zone">
@@ -68,7 +86,7 @@
             <!-- Top Function Header -->
             <header class="practice-header">
                 <div class="header-action-row">
-                    <button class="btn btn-nav-func" id="btn-func-manual" onclick="window.open('/VoiceTutor_User_Manual_v2.pdf', '_blank')"><i class="fa-solid fa-circle-question"></i> 사용설명서</button>
+                    <button class="btn btn-nav-func" id="btn-func-text-input" onclick="enterTextInputMode()"><i class="fa-solid fa-keyboard"></i> 텍스트입력</button>
                     <button class="btn btn-nav-func" id="btn-func-open-file" onclick="toggleDrawer('file-upload', true)"><i class="fa-solid fa-folder-open"></i> 파일열기</button>
                     <button class="btn btn-nav-func" id="btn-func-extract" onclick="toggleDrawer('extract-pdf', true)" style="display: none;"><i class="fa-solid fa-file-export"></i> 변환</button>
                     <button class="btn btn-nav-func" id="btn-func-record" onclick="startMobileRecording()"><i class="fa-solid fa-microphone"></i> 녹음</button>
@@ -144,9 +162,15 @@
                     <span id="dot-sheets-status" class="dot dot-gray" title="구글시트 대기"></span>
                 </div>
 
-                <button class="btn btn-footer-nav" id="btn-footer-exit" onclick="exitPracticeRoom()">
-                    종료 <i class="fa-solid fa-door-open"></i>
-                </button>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <button class="btn btn-footer-nav" id="btn-footer-history" onclick="showResultHistory()">
+                        <i class="fa-solid fa-clock-rotate-left"></i> 결과이력
+                    </button>
+
+                    <button class="btn btn-footer-nav" id="btn-footer-exit" onclick="exitPracticeRoom()">
+                        종료 <i class="fa-solid fa-door-open"></i>
+                    </button>
+                </div>
             </footer>
 
             <!-- Hidden Audio Player element -->
@@ -263,7 +287,7 @@
                 <div class="drawer-body">
                     <div class="upload-dropzone" onclick="document.getElementById('file-upload-input').click()">
                         <i class="fa-solid fa-file-arrow-up"></i>
-                        <p id="label-file-upload-placeholder">WAV, TXT, JSON, PDF 업로드</p>
+                        <p id="label-file-upload-placeholder">TXT, JSON, PDF 업로드</p>
                         <input type="file" id="file-upload-input" accept=".txt,.json,.pdf" style="display: none" onchange="handleFileImport(this)">
                     </div>
                     <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 15px; line-height: 1.4;">
@@ -337,8 +361,8 @@
                     <div class="form-group">
                         <label class="form-label" for="setting-screen-theme">화면 테마 설정</label>
                         <select id="setting-screen-theme" class="form-input" style="background-color: var(--bg-secondary)" onchange="applyScreenTheme(this.value)">
-                            <option value="black">블랙 (기본)</option>
-                            <option value="white">화이트</option>
+                            <option value="white">화이트 (기본)</option>
+                            <option value="black">블랙</option>
                         </select>
                     </div>
 
@@ -350,6 +374,21 @@
                     <button class="btn btn-primary" id="btn-save-settings" onclick="saveAppSettings()" style="width: 100%; margin-top: 15px;">
                         설정 저장 <i class="fa-solid fa-floppy-disk"></i>
                     </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Drawer: 결과이력 (HISTORY DRAWER) -->
+        <div class="drawer-overlay hidden" id="drawer-history">
+            <div class="drawer-card" style="max-height: 90vh;">
+                <header class="drawer-header">
+                    <h3><i class="fa-solid fa-clock-rotate-left"></i> 결과이력</h3>
+                    <button class="btn-close-drawer" onclick="toggleDrawer('history', false)">&times;</button>
+                </header>
+                <div class="drawer-body" style="overflow-y: auto; padding-bottom: 20px;">
+                    <div id="history-container" style="max-height: 380px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; padding-right: 4px;">
+                        <!-- dynamic history items will be loaded here -->
+                    </div>
                 </div>
             </div>
         </div>

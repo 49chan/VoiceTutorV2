@@ -38,7 +38,7 @@ let settings = {
 // Initial setup
 document.addEventListener("DOMContentLoaded", async () => {
     // Apply saved screen theme immediately
-    const savedTheme = localStorage.getItem("screen_theme") || "black";
+    const savedTheme = localStorage.getItem("screen_theme") || "white";
     applyScreenTheme(savedTheme);
 
     loadAppSettings();
@@ -186,7 +186,7 @@ function toggleDrawer(drawerId, show) {
 async function loadAppSettings() {
     try {
         // Restore saved screen theme
-        const savedTheme = localStorage.getItem("screen_theme") || "black";
+        const savedTheme = localStorage.getItem("screen_theme") || "white";
         applyScreenTheme(savedTheme);
         const themeSelect = document.getElementById("setting-screen-theme");
         if (themeSelect) themeSelect.value = savedTheme;
@@ -485,7 +485,7 @@ function restoreEvaluationFromData(data) {
     // 2. Score details display
     const score = parseFloat(data.overall_score || 0);
     const overallDisplay = document.getElementById("stat-overall-score");
-    overallDisplay.textContent = score.toFixed(1);
+    overallDisplay.textContent = Math.round(score);
     
     if (score >= 85) {
         overallDisplay.style.background = "linear-gradient(135deg, var(--score-gradient-start) 40%, var(--color-high) 100%)";
@@ -586,7 +586,9 @@ async function runPdfPageExtraction() {
         if (response.ok) {
             const res = await response.json();
             document.getElementById("raw-text-editor").value = res.raw_text;
-            document.getElementById("label-active-filename").textContent = `${uploadedPdfFile.name} (p.${pageNum})`;
+            const baseName = uploadedPdfFile.name.replace(/\.pdf$/i, "");
+            activeFilename = `${baseName}_p${pageNum}.txt`;
+            document.getElementById("label-active-filename").textContent = activeFilename;
             
             resetEvaluationDisplay();
             forceViewMode();
@@ -693,12 +695,35 @@ async function saveEditedText(silent = false) {
         return;
     }
     
+    let filenameToSave = activeFilename;
+    if (!silent || activeFilename === "새텍스트.txt") {
+        let defaultName = activeFilename.replace(/\.txt$/i, "");
+        if (defaultName === "새텍스트") {
+            defaultName = "";
+        }
+        let userFilename = prompt("저장할 파일명을 입력해 주세요:", defaultName);
+        if (userFilename === null) {
+            return; // Cancelled
+        }
+        userFilename = userFilename.trim();
+        if (!userFilename) {
+            alert("올바른 파일명을 입력해 주세요.");
+            return;
+        }
+        if (!userFilename.toLowerCase().endsWith(".txt")) {
+            userFilename += ".txt";
+        }
+        filenameToSave = userFilename;
+        activeFilename = filenameToSave;
+        document.getElementById("label-active-filename").textContent = activeFilename;
+    }
+    
     try {
         const response = await fetch(`${BACKEND_URL}/api/save-text`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-                file_name: activeFilename,
+                file_name: filenameToSave,
                 text: rawText
             })
         });
@@ -793,7 +818,7 @@ async function startMobileRecording() {
         
     } catch (err) {
         console.error("Recording start error:", err);
-        alert("마이크 입력 오류. 권한을 확인하세요.");
+        alert("설정에서 마이크 사용여부를 확인하세요.");
         btnRecord.disabled = false;
         btnRecord.classList.remove("disabled");
     }
@@ -919,11 +944,19 @@ async function submitAssessment() {
     }
     
     let success = false;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+        controller.abort();
+    }, 30000); // 30 seconds timeout
+    
     try {
         const response = await fetch(`${BACKEND_URL}/api/evaluate`, {
             method: "POST",
-            body: formData
+            body: formData,
+            signal: controller.signal
         });
+        
+        clearTimeout(timeoutId);
         
         if (response.ok) {
             const evalResult = await response.json();
@@ -986,8 +1019,13 @@ async function submitAssessment() {
             alert(`평가 오류: ${err.detail || "서버 통신 오류"}`);
         }
     } catch (err) {
-        console.error("Evaluation exception:", err);
-        alert("서버 통신 실패");
+        clearTimeout(timeoutId);
+        if (err.name === "AbortError") {
+            alert("평가 시간 초과: 30초 동안 서버로부터 응답이 없어 평가를 강제 중단합니다.");
+        } else {
+            console.error("Evaluation exception:", err);
+            alert("서버 통신 실패");
+        }
     } finally {
         const btnEval = document.getElementById("btn-func-evaluate");
         if (btnEval) {
@@ -1245,6 +1283,131 @@ function applyScreenTheme(theme) {
         document.body.classList.remove("theme-white");
     }
     localStorage.setItem("screen_theme", theme);
+}
+
+// -----------------
+// Load & Display Supabase Evaluation Result History
+// -----------------
+async function showResultHistory() {
+    if (!supabaseClient) {
+        alert("Supabase 클라이언트가 초기화되지 않았습니다. 잠시 후 다시 시도해 주세요.");
+        return;
+    }
+
+    const container = document.getElementById("history-container");
+    if (!container) return;
+
+    container.innerHTML = `<div style="text-align: center; color: var(--text-muted); padding: 20px;">불러오는 중...</div>`;
+    toggleDrawer('history', true);
+
+    try {
+        const sessionRes = await supabaseClient.auth.getSession();
+        const session = sessionRes.data?.session;
+        const userId = session?.user?.id;
+
+        if (!userId) {
+            container.innerHTML = `<div style="text-align: center; color: var(--color-low); padding: 20px; font-weight: bold;">로그인이 필요한 서비스입니다.</div>`;
+            return;
+        }
+
+        const { data, error } = await supabaseClient
+            .from('user_records')
+            .select('textbook, testcount, score, created_at, feedback')
+            .eq('user_id', userId)
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        if (!data || data.length === 0) {
+            container.innerHTML = `<div style="text-align: center; color: var(--text-muted); padding: 20px;">저장된 평가 이력이 없습니다.</div>`;
+            return;
+        }
+
+        container.innerHTML = "";
+        data.forEach(item => {
+            const card = document.createElement("div");
+            card.className = "history-item";
+            card.style.border = "1px solid var(--border-light)";
+            card.style.borderRadius = "12px";
+            card.style.padding = "14px";
+            card.style.background = "rgba(255, 255, 255, 0.02)";
+            card.style.display = "flex";
+            card.style.flexDirection = "column";
+            card.style.gap = "8px";
+
+            // Formatting score color
+            let scoreColor = "var(--color-low)";
+            const scoreVal = Math.round(parseFloat(item.score || 0));
+            if (scoreVal >= 85) {
+                scoreColor = "var(--color-high)";
+            } else if (scoreVal >= 60) {
+                scoreColor = "var(--color-mid)";
+            }
+
+            // Date parsing
+            let formattedDate = item.created_at;
+            try {
+                if (item.created_at) {
+                    const date = new Date(item.created_at);
+                    const yyyy = date.getFullYear();
+                    const mm = String(date.getMonth() + 1).padStart(2, '0');
+                    const dd = String(date.getDate()).padStart(2, '0');
+                    const hh = String(date.getHours()).padStart(2, '0');
+                    const min = String(date.getMinutes()).padStart(2, '0');
+                    const ss = String(date.getSeconds()).padStart(2, '0');
+                    formattedDate = `${yyyy}-${mm}-${dd} ${hh}:${min}:${ss}`;
+                }
+            } catch (e) {
+                console.error(e);
+            }
+
+            card.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 6px; margin-bottom: 6px;">
+                    <div style="display: flex; flex-direction: column; gap: 2px;">
+                        <span style="font-weight: 700; font-size: 0.95rem; color: var(--text-main); word-break: break-all;">${item.textbook || '미지정교재'}</span>
+                        <div style="display: flex; gap: 6px; align-items: center; font-size: 0.72rem; color: var(--text-muted);">
+                            <span>${item.testcount ? item.testcount + '회차' : '1회차'}</span>
+                            <span style="opacity: 0.4;">|</span>
+                            <span>${formattedDate}</span>
+                        </div>
+                    </div>
+                    <span style="font-weight: 800; font-size: 1.15rem; color: ${scoreColor}; white-space: nowrap;">${scoreVal}점</span>
+                </div>
+                <div style="font-size: 0.85rem; color: var(--text-main); line-height: 1.4; white-space: pre-wrap; word-break: break-all;">${item.feedback || '평가 내역 없음'}</div>
+            `;
+            container.appendChild(card);
+        });
+
+    } catch (err) {
+        console.error("Failed to load result history:", err);
+        container.innerHTML = `<div style="text-align: center; color: var(--color-low); padding: 20px;">이력을 불러오는 중 오류가 발생했습니다.</div>`;
+    }
+}
+
+// -----------------
+// Enter Direct Text Input Mode
+// -----------------
+function enterTextInputMode() {
+    const textViewer = document.getElementById("text-highlight-viewer");
+    const textEditor = document.getElementById("raw-text-editor");
+    const editToggleIcon = document.getElementById("icon-edit-toggle");
+    const saveBtn = document.getElementById("btn-save-edited-text");
+    
+    isEditingText = true;
+    
+    textViewer.classList.add("hidden");
+    textEditor.classList.remove("hidden");
+    editToggleIcon.className = "fa-solid fa-check";
+    saveBtn.classList.remove("hidden");
+    
+    textEditor.value = ""; // Start with empty editor
+    textEditor.focus();
+    updateWordCounters();
+    
+    activeFilename = "새텍스트.txt";
+    document.getElementById("label-active-filename").textContent = activeFilename;
+    
+    resetEvaluationDisplay();
 }
 
 
