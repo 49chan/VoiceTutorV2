@@ -343,8 +343,16 @@
 
                     <!-- Backend API Server URL -->
                     <div class="form-group">
-                        <label class="form-label" for="setting-backend-url">백엔드 서버 URL (API 주소)</label>
-                        <input type="text" id="setting-backend-url" class="form-input" placeholder="http://127.0.0.1:8000">
+                        <label class="form-label">백엔드 서버 URL (API 주소)</label>
+                        <div style="display: flex; gap: 15px; margin-bottom: 8px;">
+                            <label style="display: flex; align-items: center; gap: 5px; font-size: 0.85rem; cursor: pointer; color: var(--text-main);">
+                                <input type="radio" name="backend-type" id="backend-type-local" value="local" onchange="updateBackendUrlField()" style="accent-color: var(--color-primary);"> 로컬테스트
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 5px; font-size: 0.85rem; cursor: pointer; color: var(--text-main);">
+                                <input type="radio" name="backend-type" id="backend-type-cloud" value="cloud" onchange="updateBackendUrlField()" style="accent-color: var(--color-primary);"> 기본값 (클라우드)
+                            </label>
+                        </div>
+                        <input type="text" id="setting-backend-url" class="form-input" readonly style="background-color: var(--bg-secondary); cursor: not-allowed; opacity: 0.85;">
                     </div>
 
                     <!-- Paths configuration -->
@@ -397,6 +405,6 @@
 
     <!-- Inject scripts -->
     <script src="js/recorder.js"></script>
-    <script src="js/app.js?v=1.0.3"></script>
+    <script src="js/app.js?v=1.0.4"></script>
 </body>
 </html>

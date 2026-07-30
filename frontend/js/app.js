@@ -196,7 +196,15 @@ async function loadAppSettings() {
             settings = await response.json();
             
             // Populate form fields
-            document.getElementById("setting-backend-url").value = BACKEND_URL;
+            const savedUrl = localStorage.getItem("backend_url") || "http://127.0.0.1:8000";
+            if (savedUrl === "http://127.0.0.1:8000") {
+                const localRadio = document.getElementById("backend-type-local");
+                if (localRadio) localRadio.checked = true;
+            } else {
+                const cloudRadio = document.getElementById("backend-type-cloud");
+                if (cloudRadio) cloudRadio.checked = true;
+            }
+            document.getElementById("setting-backend-url").value = savedUrl;
             document.getElementById("setting-learning-lang").value = settings.learning_language || "ja-JP";
             document.getElementById("setting-storage-path").value = settings.local_storage_path || "";
             
@@ -244,8 +252,8 @@ async function saveAppSettings() {
         BACKEND_URL = inputBackendUrl;
         localStorage.setItem("backend_url", inputBackendUrl);
     } else {
-        BACKEND_URL = window.location.origin;
-        localStorage.removeItem("backend_url");
+        BACKEND_URL = "http://127.0.0.1:8000";
+        localStorage.setItem("backend_url", "http://127.0.0.1:8000");
     }
     
     settings.learning_language = document.getElementById("setting-learning-lang").value;
@@ -274,6 +282,16 @@ async function saveAppSettings() {
     } catch (err) {
         console.error("Save settings error:", err);
         alert(`❌ 서버 연결 실패\n\n지정한 API 주소(${BACKEND_URL})에 백엔드가 구동 중인지, 또는 PC의 로컬 서버가 켜져 있는지 확인해 주세요.`);
+    }
+}
+
+function updateBackendUrlField() {
+    const isLocal = document.getElementById("backend-type-local").checked;
+    const urlField = document.getElementById("setting-backend-url");
+    if (isLocal) {
+        urlField.value = "http://127.0.0.1:8000";
+    } else {
+        urlField.value = window.location.origin;
     }
 }
 
