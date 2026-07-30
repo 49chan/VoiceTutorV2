@@ -951,6 +951,10 @@ async function submitAssessment() {
     const normalizedText = quickNormalizeText(rawText);
     formData.append("normalized_text", normalizedText);
     formData.append("audio", recordedWavBlob, "recording.wav");
+    
+    // 설정화면의 학습언어설정 값을 확인하여 함께 전달
+    const learningLang = document.getElementById("setting-learning-lang").value;
+    formData.append("learning_language", learningLang);
 
     // 중지 시 저장된 버전이 있으면 evaluate에 전달 (MP3 중복 생성 방지)
     if (savedRecordingInfo && savedRecordingInfo.version != null) {

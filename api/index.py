@@ -398,7 +398,8 @@ async def api_evaluate(
     raw_text: str = Form(...),
     normalized_text: str = Form(...),
     audio: UploadFile = File(...),
-    pre_saved_version: Optional[int] = Form(None)
+    pre_saved_version: Optional[int] = Form(None),
+    learning_language: Optional[str] = Form(None)
 ):
     """
     Core pipeline:
@@ -419,8 +420,8 @@ async def api_evaluate(
         with open(temp_wav_path, "wb") as buffer:
             shutil.copyfileobj(audio.file, buffer)
             
-        # Parse language & configure
-        lang = settings.learning_language or "ja-JP"
+        # Parse language & configure (use client-passed language first, then fallback)
+        lang = learning_language or settings.learning_language or "ja-JP"
         
         # Check Azure settings
         has_azure = bool(settings.azure_speech_key and settings.azure_speech_region)
