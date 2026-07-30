@@ -43,13 +43,12 @@ class AppSettings(BaseModel):
 
 def get_default_storage_path() -> str:
     """Gets the default directory to save assessment JSONs and audio MP3s."""
-    parent_dir = os.path.dirname(os.path.dirname(__file__))
-    
     # Check if running on Vercel or read-only filesystem
-    if os.environ.get("VERCEL") or not os.access(parent_dir, os.W_OK):
+    if os.environ.get("VERCEL"):
         recordings_dir = "/tmp/tutor_doc_recordings"
     else:
-        recordings_dir = os.path.join(parent_dir, "recordings")
+        home_dir = os.path.expanduser("~")
+        recordings_dir = os.path.join(home_dir, "VoiceTutor_Records")
         
     try:
         os.makedirs(recordings_dir, exist_ok=True)

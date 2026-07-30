@@ -45,7 +45,7 @@
 
     <script>
         // 백엔드 URL 획득 (로컬 스토리지 또는 현재 도메인)
-        const BACKEND_URL = localStorage.getItem("backend_url") || window.location.origin;
+        const BACKEND_URL = localStorage.getItem("backend_url") || "http://127.0.0.1:8000";
         const statusMsg = document.getElementById("status-message");
 
         async function handleAuthCallback() {
