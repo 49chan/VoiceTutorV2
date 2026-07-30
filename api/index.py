@@ -1,5 +1,20 @@
 # FastAPI Entrypoint for Vercel deployment
 import os
+
+def load_local_env():
+    env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env")
+    if os.path.exists(env_path):
+        with open(env_path, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                if "=" in line:
+                    key, val = line.split("=", 1)
+                    os.environ[key.strip()] = val.strip().strip("'\"")
+
+load_local_env()
+
 import json
 import wave
 import shutil
