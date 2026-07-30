@@ -153,7 +153,7 @@ class SaveTextRequest(BaseModel):
 def api_save_text(req: SaveTextRequest):
     """Saves manually edited raw text to a .txt file in the local storage directory."""
     settings = load_settings()
-    storage_path = get_default_storage_path()
+    storage_path = settings.local_storage_path or get_default_storage_path()
     os.makedirs(storage_path, exist_ok=True)
     
     base_name = os.path.splitext(req.file_name)[0]
@@ -341,7 +341,8 @@ async def api_save_recording(
     중지 버튼 시 호출. WAV를 받아 MP3로 변환 후 recordings 폴더에 저장.
     평가 시 재사용할 수 있도록 version_int와 mp3_filename을 반환.
     """
-    storage_path = get_default_storage_path()
+    settings = load_settings()
+    storage_path = settings.local_storage_path or get_default_storage_path()
     os.makedirs(storage_path, exist_ok=True)
 
     temp_wav_path = os.path.join(TEMP_DIR, f"rec_{datetime.now().timestamp()}.wav")
@@ -394,7 +395,7 @@ async def api_evaluate(
     6. Dispatches background worker task to update Google Sheets.
     """
     settings = load_settings()
-    storage_path = get_default_storage_path()
+    storage_path = settings.local_storage_path or get_default_storage_path()
     os.makedirs(storage_path, exist_ok=True)
     
     # Secure raw audio WAV payload to temp directory
@@ -527,7 +528,7 @@ async def api_evaluate(
 def api_get_history():
     """Lists all saved evaluation JSON files ordered by creation date descending."""
     settings = load_settings()
-    storage_path = get_default_storage_path()
+    storage_path = settings.local_storage_path or get_default_storage_path()
     
     if not os.path.exists(storage_path):
         return []
@@ -562,7 +563,7 @@ def api_get_history():
 def api_get_history_detail(filename: str):
     """Retrieves full JSON details of a specific historical evaluation log."""
     settings = load_settings()
-    storage_path = get_default_storage_path()
+    storage_path = settings.local_storage_path or get_default_storage_path()
     file_path = os.path.join(storage_path, filename)
     
     if not os.path.exists(file_path) or not filename.lower().endswith(".json"):
@@ -578,7 +579,7 @@ def api_get_history_detail(filename: str):
 def api_get_history_audio(filename: str):
     """Streams the saved evaluation MP3 file from local storage."""
     settings = load_settings()
-    storage_path = get_default_storage_path()
+    storage_path = settings.local_storage_path or get_default_storage_path()
     file_path = os.path.join(storage_path, filename)
     
     # Strip path injections

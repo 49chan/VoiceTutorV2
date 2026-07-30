@@ -947,7 +947,7 @@ async function submitAssessment() {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => {
         controller.abort();
-    }, 30000); // 30 seconds timeout
+    }, 8000); // 8 seconds timeout
     
     try {
         const response = await fetch(`${BACKEND_URL}/api/evaluate`, {
@@ -1021,7 +1021,7 @@ async function submitAssessment() {
     } catch (err) {
         clearTimeout(timeoutId);
         if (err.name === "AbortError") {
-            alert("평가 시간 초과: 30초 동안 서버로부터 응답이 없어 평가를 강제 중단합니다.");
+            alert("평가 시간 초과: 8초 동안 서버로부터 응답이 없어 평가를 강제 중단합니다.");
         } else {
             console.error("Evaluation exception:", err);
             alert("서버 통신 실패");
