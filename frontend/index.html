@@ -59,8 +59,7 @@
                     <strong style="color: var(--color-primary); display: flex; align-items: center; gap: 5px; margin-bottom: 5px; font-size: 0.82rem;">
                         <i class="fa-solid fa-circle-info"></i> 테스트 버전 작동 안내
                     </strong>
-                    <span style="display: block; margin-bottom: 2px;">• <strong>PC</strong>: 생성된 편집(.txt), 녹음(.mp3), 평가(.json) 파일이 로컬 PC에 안전하게 자동 저장됩니다.</span>
-                    <span>• <strong>모바일</strong>: 사용 시점의 결과만 화면에 표시되며, 저장되지 않습니다. (로컬 저장은 추후 지원 예정)</span>
+                    <span>사용 시점의 평가결과와 결과이력만 화면에 표시되며, 생성된 편집(.txt), 녹음(.mp3), 평가(.json) 파일이 로컬에 저장되지 않습니다. (로컬 저장은 추후 지원 예정)</span>
                 </div>
 
                 <div class="landing-action-zone">
@@ -346,10 +345,10 @@
                         <label class="form-label">백엔드 서버 URL (API 주소)</label>
                         <div style="display: flex; gap: 15px; margin-bottom: 8px;">
                             <label style="display: flex; align-items: center; gap: 5px; font-size: 0.85rem; cursor: pointer; color: var(--text-main);">
-                                <input type="radio" name="backend-type" id="backend-type-local" value="local" onchange="updateBackendUrlField()" style="accent-color: var(--color-primary);"> 로컬테스트
+                                <input type="radio" name="backend-type" id="backend-type-cloud" value="cloud" onchange="updateBackendUrlField()" style="accent-color: var(--color-primary);" checked> 기본값 (클라우드)
                             </label>
                             <label style="display: flex; align-items: center; gap: 5px; font-size: 0.85rem; cursor: pointer; color: var(--text-main);">
-                                <input type="radio" name="backend-type" id="backend-type-cloud" value="cloud" onchange="updateBackendUrlField()" style="accent-color: var(--color-primary);"> 기본값 (클라우드)
+                                <input type="radio" name="backend-type" id="backend-type-local" value="local" onchange="updateBackendUrlField()" style="accent-color: var(--color-primary);"> 로컬테스트
                             </label>
                         </div>
                         <input type="text" id="setting-backend-url" class="form-input" readonly style="background-color: var(--bg-secondary); cursor: not-allowed; opacity: 0.85;">

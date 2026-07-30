@@ -1,4 +1,4 @@
-let BACKEND_URL = localStorage.getItem("backend_url") || "http://127.0.0.1:8000";
+let BACKEND_URL = localStorage.getItem("backend_url") || window.location.origin;
 // Supabase Client Global Instance
 let supabaseClient = null;
 
@@ -196,8 +196,9 @@ async function loadAppSettings() {
             settings = await response.json();
             
             // Populate form fields
-            const savedUrl = localStorage.getItem("backend_url") || "http://127.0.0.1:8000";
-            if (savedUrl === "http://127.0.0.1:8000") {
+            const defaultUrl = window.location.origin;
+            const savedUrl = localStorage.getItem("backend_url") || defaultUrl;
+            if (savedUrl === "http://127.0.0.1:8000" && defaultUrl !== "http://127.0.0.1:8000") {
                 const localRadio = document.getElementById("backend-type-local");
                 if (localRadio) localRadio.checked = true;
             } else {
@@ -252,8 +253,8 @@ async function saveAppSettings() {
         BACKEND_URL = inputBackendUrl;
         localStorage.setItem("backend_url", inputBackendUrl);
     } else {
-        BACKEND_URL = "http://127.0.0.1:8000";
-        localStorage.setItem("backend_url", "http://127.0.0.1:8000");
+        BACKEND_URL = window.location.origin;
+        localStorage.setItem("backend_url", window.location.origin);
     }
     
     settings.learning_language = document.getElementById("setting-learning-lang").value;
