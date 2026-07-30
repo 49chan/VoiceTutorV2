@@ -137,13 +137,13 @@ def generate_feedback(score: float, language: str) -> str:
             return "일부 자음동화나 받침 발음의 소리가 명확하지 않습니다. 발성 기관을 크게 열고 천천히 읽어 보세요."
         else:
             return "한국어 특유의 격음/경음 및 받침 소리 교정이 필요합니다. 짧은 단어부터 또박또박 낭독해 보세요."
-    else:  # en-US
+    else:  # en-US (기타 언어 포함)
         if score >= 85:
-            return "Excellent pronunciation! Your word stressing, intonation, and flow are very natural."
+            return "훌륭한 발음입니다! 단어 강세, 억양 및 흐름이 매우 자연스럽습니다."
         elif score >= 60:
-            return "Good job! Focus slightly more on the highlighted vowel clarity and consonant clusters."
+            return "잘하셨습니다! 표시된 모음의 명확성과 자음 결합 발음에 조금 더 집중해 보세요."
         else:
-            return "More practice is recommended. Slow down and focus on clear syllable articulation before speeding up."
+            return "더 많은 연습이 필요합니다. 속도를 내기 전에 천천히 음절을 또박또박 발음하는 연습부터 하세요."
 
 # -----------------
 # API Key Pydantics

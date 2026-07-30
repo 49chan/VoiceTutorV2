@@ -1,0 +1,31 @@
+{
+  "file_name": "건강2.txt",
+  "version": 1,
+  "overall_score": 80,
+  "accuracy_score": 80,
+  "fluency_score": 80,
+  "completeness_score": 100,
+  "created_at": "2026-07-30 14:09:55",
+  "raw_text": "안녕하세요. 건강하시죠.",
+  "normalized_text": "안녕하세요. 건강하시죠.",
+  "summary_feedback": "일부 자음동화나 받침 발음의 소리가 명확하지 않습니다. 발성 기관을 크게 열고 천천히 읽어 보세요.",
+  "language": "ko-KR",
+  "words": [
+    {
+      "Word": "안녕하세요",
+      "Offset": 15400000,
+      "Duration": 14400000,
+      "AccuracyScore": 67.0,
+      "ErrorType": "None"
+    },
+    {
+      "Word": "건강하시죠",
+      "Offset": 30100000,
+      "Duration": 11500000,
+      "AccuracyScore": 94.0,
+      "ErrorType": "None"
+    }
+  ],
+  "recognized_text": "안녕하세요 건강하시죠?",
+  "audio_filename": "건강2_p1_01.mp3"
+}

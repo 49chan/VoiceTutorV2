@@ -205,9 +205,7 @@ async function loadAppSettings() {
                 const cloudRadio = document.getElementById("backend-type-cloud");
                 if (cloudRadio) cloudRadio.checked = true;
             }
-            document.getElementById("setting-backend-url").value = savedUrl;
             document.getElementById("setting-learning-lang").value = settings.learning_language || "ja-JP";
-            document.getElementById("setting-storage-path").value = settings.local_storage_path || "";
             
             // Update status dots indicators
             updateStatusDots();
@@ -256,9 +254,7 @@ async function saveAppSettings() {
         BACKEND_URL = window.location.origin;
         localStorage.setItem("backend_url", window.location.origin);
     }
-    
     settings.learning_language = document.getElementById("setting-learning-lang").value;
-    settings.local_storage_path = document.getElementById("setting-storage-path").value.trim();
     
     // Save theme setting
     const selectedTheme = document.getElementById("setting-screen-theme").value;
@@ -963,8 +959,10 @@ async function submitAssessment() {
     }
     
     let success = false;
+    let isTimeout = false;
     const controller = new AbortController();
     const timeoutId = setTimeout(() => {
+        isTimeout = true;
         controller.abort();
     }, 8000); // 8 seconds timeout
     
@@ -1039,7 +1037,7 @@ async function submitAssessment() {
         }
     } catch (err) {
         clearTimeout(timeoutId);
-        if (err.name === "AbortError") {
+        if (err.name === "AbortError" || isTimeout) {
             alert("평가 시간 초과: 8초 동안 서버로부터 응답이 없어 평가를 강제 중단합니다.");
         } else {
             console.error("Evaluation exception:", err);
