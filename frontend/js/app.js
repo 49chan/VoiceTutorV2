@@ -288,6 +288,16 @@ async function saveAppSettings() {
     }
 }
 
+function updateBackendUrlField() {
+    const isLocal = document.getElementById("backend-type-local").checked;
+    const urlField = document.getElementById("setting-backend-url");
+    if (isLocal) {
+        urlField.value = "http://127.0.0.1:8000";
+    } else {
+        urlField.value = window.location.origin;
+    }
+}
+
 
 
 // -----------------
