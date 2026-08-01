@@ -13,7 +13,7 @@ let recordedWavBlob = null;
 let currentAudioUrl = null;
 let wordPlaybackStopTime = null;
 let uploadedPdfFile = null;
-let activeFilename = "수동낭독연습.txt";
+let activeFilename = "";
 let activePageNumber = 1;
 
 // Recording Timer Globals
