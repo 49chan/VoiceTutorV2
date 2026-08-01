@@ -43,13 +43,12 @@ class AppSettings(BaseModel):
 
 def get_default_storage_path() -> str:
     """Gets the default directory to save assessment JSONs and audio MP3s."""
-    parent_dir = os.path.dirname(os.path.dirname(__file__))
-    
     # Check if running on Vercel or read-only filesystem
-    if os.environ.get("VERCEL") or not os.access(parent_dir, os.W_OK):
+    if os.environ.get("VERCEL"):
         recordings_dir = "/tmp/tutor_doc_recordings"
     else:
-        recordings_dir = os.path.join(parent_dir, "recordings")
+        home_dir = os.path.expanduser("~")
+        recordings_dir = os.path.join(home_dir, "VoiceTutor_Records")
         
     try:
         os.makedirs(recordings_dir, exist_ok=True)
@@ -95,7 +94,7 @@ def load_settings() -> AppSettings:
             with open(SETTINGS_FILE, "r", encoding="utf-8") as f:
                 data = json.load(f)
             
-            storage_path = data.get("local_storage_path") or default_path
+            storage_path = default_path
             os.makedirs(storage_path, exist_ok=True)
 
             settings.learning_language = data.get("learning_language", "ja-JP")
@@ -120,9 +119,10 @@ def load_settings() -> AppSettings:
 def save_settings(settings: AppSettings) -> bool:
     """Saves the non-credential configuration (language and local paths) to settings.json. Gracefully bypasses on read-only environments."""
     global _cached_settings
+    settings.local_storage_path = get_default_storage_path()
     _cached_settings = settings
     try:
-        storage_path = settings.local_storage_path or get_default_storage_path()
+        storage_path = settings.local_storage_path
         
         try:
             os.makedirs(storage_path, exist_ok=True)

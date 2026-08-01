@@ -840,3 +840,10 @@ body.theme-white .recording-status-indicator.stopped i {
     color: #4b5563; /* Use a readable gray for the stop icon in white mode */
 }
 
+/* Top Function Buttons Icon Colors */
+#btn-func-text-input i { color: black !important; }
+#btn-func-open-file i { color: #f59e0b !important; } /* yellow */
+#btn-func-record i { color: #ef4444 !important; } /* red */
+#btn-func-stop i { color: #3b82f6 !important; } /* blue */
+#btn-func-evaluate i { color: #10b981 !important; } /* green */
+

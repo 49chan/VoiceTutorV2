@@ -7,9 +7,17 @@
     <meta name="description" content="AI-based mobile-first pronunciation assessment and text extraction tool.">
     <!-- Google Font & FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/style.css?v=1.0.2">
     <!-- Supabase JS Client SDK -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        /* Top Function Buttons Icon Colors */
+        #btn-func-text-input i { color: black !important; }
+        #btn-func-open-file i { color: #f59e0b !important; } /* yellow */
+        #btn-func-record i { color: #ef4444 !important; } /* red */
+        #btn-func-stop i { color: #3b82f6 !important; } /* blue */
+        #btn-func-evaluate i { color: #10b981 !important; } /* green */
+    </style>
 </head>
 <body>
     <div class="app-container">
@@ -18,9 +26,11 @@
         <!-- SCREEN 1: LANDING VIEW (첫로그인화면.png Style) -->
         <!-- ========================================== -->
         <div class="screen-view" id="screen-landing">
-            <!-- Header Links -->
             <header class="landing-header">
-                <button class="btn btn-tab-header" id="btn-board-open" onclick="toggleDrawer('board', true)">게시판</button>
+                <div style="display: flex; gap: 8px;">
+                    <button class="btn btn-tab-header" id="btn-board-open" onclick="toggleDrawer('board', true)">게시판</button>
+                    <button class="btn btn-tab-header" id="btn-landing-manual" onclick="window.open('/VoiceTutor_User_Manual_v2.pdf', '_blank')">사용설명서</button>
+                </div>
                 <div class="header-right-btns" style="display: flex; align-items: center;">
                     <!-- User Profile Info -->
                     <div id="user-profile-header" class="hidden" style="display: flex; align-items: center; gap: 8px; margin-right: 12px; border-right: 1px solid var(--border-color, rgba(255,255,255,0.15)); padding-right: 12px;">
@@ -43,6 +53,13 @@
                 
                 <div class="landing-image-container">
                     <img src="images/tutor_doc_diagram.webp" alt="TutorDoc AI Schema Illustration" class="landing-image" id="landing-schema-image">
+                </div>
+
+                <div class="landing-disclaimer" style="margin-top: 15px; font-size: 0.78rem; line-height: 1.45; color: var(--text-muted); background: rgba(120, 120, 120, 0.03); padding: 12px; border-radius: 8px; border: 1px solid var(--border-light); text-align: left; max-width: 320px; margin-left: auto; margin-right: auto; box-sizing: border-box;">
+                    <strong style="color: var(--color-primary); display: flex; align-items: center; gap: 5px; margin-bottom: 5px; font-size: 0.82rem;">
+                        <i class="fa-solid fa-circle-info"></i> 테스트 버전 작동 안내
+                    </strong>
+                    <span>녹음버튼 시 녹음(.mp3) 파일은 현재 저장되지 않습니다.</span>
                 </div>
 
                 <div class="landing-action-zone">
@@ -68,7 +85,7 @@
             <!-- Top Function Header -->
             <header class="practice-header">
                 <div class="header-action-row">
-                    <button class="btn btn-nav-func" id="btn-func-manual" onclick="window.open('/VoiceTutor_User_Manual_v2.pdf', '_blank')"><i class="fa-solid fa-circle-question"></i> 사용설명서</button>
+                    <button class="btn btn-nav-func" id="btn-func-text-input" onclick="enterTextInputMode()"><i class="fa-solid fa-keyboard"></i> 텍스트입력</button>
                     <button class="btn btn-nav-func" id="btn-func-open-file" onclick="toggleDrawer('file-upload', true)"><i class="fa-solid fa-folder-open"></i> 파일열기</button>
                     <button class="btn btn-nav-func" id="btn-func-extract" onclick="toggleDrawer('extract-pdf', true)" style="display: none;"><i class="fa-solid fa-file-export"></i> 변환</button>
                     <button class="btn btn-nav-func" id="btn-func-record" onclick="startMobileRecording()"><i class="fa-solid fa-microphone"></i> 녹음</button>
@@ -76,7 +93,7 @@
                     <button class="btn btn-nav-func disabled" id="btn-func-evaluate" onclick="submitAssessment()" disabled><i class="fa-solid fa-square-poll-vertical"></i> 평가</button>
                 </div>
                 <div class="header-right-indicator" style="display: flex; align-items: center;">
-                    <span id="recording-timer-countdown" class="timer-warning hidden" style="margin-right: 8px; font-weight: 600; color: var(--color-low); font-size: 0.9rem; display: flex; align-items: center; gap: 4px;"><i class="fa-regular fa-clock"></i> 2:00</span>
+                    <span id="recording-timer-countdown" class="timer-warning hidden" style="margin-right: 8px; font-weight: 600; color: var(--color-low); font-size: 0.9rem; display: flex; align-items: center; gap: 4px;"><i class="fa-regular fa-clock"></i> 1:30</span>
                     <div class="recording-status-indicator stopped" id="recording-status-indicator" title="녹음 상태 표시">
                         <i class="fa-solid fa-stop" id="icon-recording-status"></i>
                     </div>
@@ -144,9 +161,15 @@
                     <span id="dot-sheets-status" class="dot dot-gray" title="구글시트 대기"></span>
                 </div>
 
-                <button class="btn btn-footer-nav" id="btn-footer-exit" onclick="exitPracticeRoom()">
-                    종료 <i class="fa-solid fa-door-open"></i>
-                </button>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <button class="btn btn-footer-nav" id="btn-footer-history" onclick="showResultHistory()">
+                        <i class="fa-solid fa-clock-rotate-left"></i> 결과이력
+                    </button>
+
+                    <button class="btn btn-footer-nav" id="btn-footer-exit" onclick="exitPracticeRoom()">
+                        종료 <i class="fa-solid fa-door-open"></i>
+                    </button>
+                </div>
             </footer>
 
             <!-- Hidden Audio Player element -->
@@ -255,22 +278,45 @@
 
         <!-- Drawer 3: 파일열기 (FILE UPLOAD DRAWER) -->
         <div class="drawer-overlay hidden" id="drawer-file-upload">
-            <div class="drawer-card">
+            <div class="drawer-card" style="max-height: 90vh; width: 380px;">
                 <header class="drawer-header">
-                    <h3><i class="fa-solid fa-folder-open"></i> 연습 파일 불러오기</h3>
+                    <h3><i class="fa-solid fa-folder-open"></i> 파일 불러오기</h3>
                     <button class="btn-close-drawer" onclick="toggleDrawer('file-upload', false)">&times;</button>
                 </header>
-                <div class="drawer-body">
-                    <div class="upload-dropzone" onclick="document.getElementById('file-upload-input').click()">
-                        <i class="fa-solid fa-file-arrow-up"></i>
-                        <p id="label-file-upload-placeholder">WAV, TXT, JSON, PDF 업로드</p>
-                        <input type="file" id="file-upload-input" accept=".txt,.json,.pdf" style="display: none" onchange="handleFileImport(this)">
+                <div class="drawer-body" style="overflow-y: auto; max-height: 75vh; display: flex; flex-direction: column; gap: 16px;">
+                    <!-- 1. 연습파일 불러오기 -->
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <div style="font-weight: 700; color: #a855f7; font-size: 0.9rem; border-bottom: 1px solid var(--border-light); padding-bottom: 4px; display: flex; align-items: center; gap: 6px;">
+                            <i class="fa-solid fa-graduation-cap"></i> 연습파일 불러오기
+                        </div>
+                        <div class="upload-dropzone" onclick="document.getElementById('file-upload-input').click()" style="padding: 10px 15px; display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 10px; border: 2px dashed var(--border-light); border-radius: 8px; cursor: pointer; text-align: center; background: rgba(255,255,255,0.01);">
+                            <i class="fa-solid fa-file-arrow-up" style="font-size: 1.3rem; color: var(--color-primary);"></i>
+                            <p id="label-file-upload-placeholder" style="font-size: 0.82rem; margin: 0; color: var(--text-main);">교재 파일 업로드 (.txt, .pdf)</p>
+                            <input type="file" id="file-upload-input" accept=".txt,.pdf" style="display: none" onchange="handleFileImport(this)">
+                        </div>
+                        <p style="font-size: 0.72rem; color: var(--text-muted); margin: 0; line-height: 1.4;">
+                            * <strong>.txt</strong>: 텍스트를 로드해 신규 연습을 시작합니다.<br>
+                            * <strong>.pdf</strong>: PDF 페이지에서 문자 추출을 진행합니다.
+                        </p>
                     </div>
-                    <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 15px; line-height: 1.4;">
-                        - <strong>.txt</strong>: 텍스트를 불러와 신규 연습 녹음 대기 상태로 전환합니다.<br>
-                        - <strong>.json</strong>: 과거 평가 이력(컬러 텍스트, 점수, 피드백 및 녹음 오디오)을 화면에 복원합니다.<br>
-                        - <strong>.pdf</strong>: PDF 파일의 특정 페이지 문자 추출 모드를 실행합니다.
-                    </p>
+
+                    <!-- 공백 추가 -->
+                    <div style="height: 8px;"></div>
+
+                    <!-- 2. 평가파일 불러오기 -->
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <div style="font-weight: 700; color: #a855f7; font-size: 0.9rem; border-bottom: 1px solid var(--border-light); padding-bottom: 4px; display: flex; align-items: center; justify-content: space-between; gap: 6px;">
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <i class="fa-solid fa-history"></i> 평가파일 불러오기 (DB 이력)
+                            </div>
+                            <label style="display: flex; align-items: center; gap: 4px; font-size: 0.72rem; font-weight: normal; color: var(--text-muted); cursor: pointer; user-select: none;">
+                                <input type="checkbox" id="db-history-only-txt-checkbox" style="width: 13px; height: 13px; accent-color: #a855f7;"> txt파일
+                            </label>
+                        </div>
+                        <div id="db-evaluation-history-list" style="max-height: 155px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; border: 1px dashed var(--border-light); padding: 8px; border-radius: 8px; background: rgba(255,255,255,0.01);">
+                            <div style="text-align: center; color: var(--text-muted); padding: 15px; font-size: 0.8rem;">불러오는 중...</div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -317,12 +363,6 @@
                         </div>
                     </div>
 
-                    <!-- Backend API Server URL -->
-                    <div class="form-group">
-                        <label class="form-label" for="setting-backend-url">백엔드 서버 URL (API 주소)</label>
-                        <input type="text" id="setting-backend-url" class="form-input" placeholder="http://127.0.0.1:8000">
-                    </div>
-
                     <!-- Paths configuration -->
                     <div class="form-group">
                         <label class="form-label" for="setting-learning-lang">학습 언어 설정</label>
@@ -337,14 +377,15 @@
                     <div class="form-group">
                         <label class="form-label" for="setting-screen-theme">화면 테마 설정</label>
                         <select id="setting-screen-theme" class="form-input" style="background-color: var(--bg-secondary)" onchange="applyScreenTheme(this.value)">
-                            <option value="black">블랙 (기본)</option>
-                            <option value="white">화이트</option>
+                            <option value="white">화이트 (기본)</option>
+                            <option value="black">블랙</option>
                         </select>
                     </div>
 
-                    <div class="form-group">
-                        <label class="form-label" for="setting-storage-path">로컬 파일 (.txt, .json, .mp3) 저장 위치</label>
-                        <input type="text" id="setting-storage-path" class="form-input" placeholder="디스크 기본 recordings 폴더 저장">
+                    <!-- Developer Local Test Checkbox -->
+                    <div class="form-group" style="display: flex; align-items: center; justify-content: space-between; background: rgba(255,255,255,0.02); padding: 12px; border-radius: 8px; border: 1px solid var(--border-light); margin-top: 15px;">
+                        <label class="form-label" for="setting-dev-local" style="margin-bottom: 0; cursor: pointer;">개발자 로컬테스트</label>
+                        <input type="checkbox" id="setting-dev-local" style="width: 20px; height: 20px; accent-color: var(--color-primary);">
                     </div>
 
                     <button class="btn btn-primary" id="btn-save-settings" onclick="saveAppSettings()" style="width: 100%; margin-top: 15px;">
@@ -354,10 +395,25 @@
             </div>
         </div>
 
+        <!-- Drawer: 결과이력 (HISTORY DRAWER) -->
+        <div class="drawer-overlay hidden" id="drawer-history">
+            <div class="drawer-card" style="max-height: 90vh;">
+                <header class="drawer-header">
+                    <h3><i class="fa-solid fa-clock-rotate-left"></i> 결과이력</h3>
+                    <button class="btn-close-drawer" onclick="toggleDrawer('history', false)">&times;</button>
+                </header>
+                <div class="drawer-body" style="overflow-y: auto; padding-bottom: 20px;">
+                    <div id="history-container" style="max-height: 380px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; padding-right: 4px;">
+                        <!-- dynamic history items will be loaded here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
     </div>
 
     <!-- Inject scripts -->
     <script src="js/recorder.js"></script>
-    <script src="js/app.js"></script>
+    <script src="js/app.js?v=1.0.4"></script>
 </body>
 </html>

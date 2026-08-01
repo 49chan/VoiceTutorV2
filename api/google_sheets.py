@@ -53,7 +53,7 @@ async def append_evaluation_row(
     payload = {
         "file_name": file_name,
         "version": version,
-        "overall_score": round(float(overall_score), 2),
+        "overall_score": round(float(overall_score)),
         "created_at": created_at,
         "summary_feedback": summary_feedback
     }

@@ -1,4 +1,8 @@
-let BACKEND_URL = localStorage.getItem("backend_url") || window.location.origin;
+const defaultOrigin = (window.location.origin === "null" || window.location.origin.startsWith("file://") || !window.location.origin.startsWith("http")) ? "http://127.0.0.1:8000" : window.location.origin;
+let BACKEND_URL = localStorage.getItem("backend_url") || defaultOrigin;
+if (BACKEND_URL === "null" || BACKEND_URL.startsWith("file://") || !BACKEND_URL.startsWith("http")) {
+    BACKEND_URL = "http://127.0.0.1:8000";
+}
 // Supabase Client Global Instance
 let supabaseClient = null;
 
@@ -16,7 +20,7 @@ let activePageNumber = 1;
 let recordingTimerInterval = null;
 let recordingTimeout = null;
 let recordingSecondsElapsed = 0;
-const RECORDING_LIMIT_SECONDS = 120; // 2 minutes cutoff
+const RECORDING_LIMIT_SECONDS = 90; // 1.5 minutes cutoff
 let voiceDetected = false;
 let voiceCheckTimeout = null;
 let isLoggedIn = false;
@@ -38,7 +42,7 @@ let settings = {
 // Initial setup
 document.addEventListener("DOMContentLoaded", async () => {
     // Apply saved screen theme immediately
-    const savedTheme = localStorage.getItem("screen_theme") || "black";
+    const savedTheme = localStorage.getItem("screen_theme") || "white";
     applyScreenTheme(savedTheme);
 
     loadAppSettings();
@@ -163,6 +167,9 @@ function toggleDrawer(drawerId, show) {
     
     if (show) {
         overlay.classList.remove("hidden");
+        if (drawerId === 'file-upload') {
+            loadDbHistory();
+        }
     } else {
         overlay.classList.add("hidden");
         // If settings drawer is closed, turn off mic testing and validate status
@@ -186,7 +193,7 @@ function toggleDrawer(drawerId, show) {
 async function loadAppSettings() {
     try {
         // Restore saved screen theme
-        const savedTheme = localStorage.getItem("screen_theme") || "black";
+        const savedTheme = localStorage.getItem("screen_theme") || "white";
         applyScreenTheme(savedTheme);
         const themeSelect = document.getElementById("setting-screen-theme");
         if (themeSelect) themeSelect.value = savedTheme;
@@ -196,9 +203,14 @@ async function loadAppSettings() {
             settings = await response.json();
             
             // Populate form fields
-            document.getElementById("setting-backend-url").value = BACKEND_URL;
+            const defaultUrl = window.location.origin;
+            const savedUrl = localStorage.getItem("backend_url") || defaultUrl;
+            const isLocal = (savedUrl === "http://127.0.0.1:8000" && defaultUrl !== "http://127.0.0.1:8000");
+            const devLocalCheckbox = document.getElementById("setting-dev-local");
+            if (devLocalCheckbox) {
+                devLocalCheckbox.checked = isLocal;
+            }
             document.getElementById("setting-learning-lang").value = settings.learning_language || "ja-JP";
-            document.getElementById("setting-storage-path").value = settings.local_storage_path || "";
             
             // Update status dots indicators
             updateStatusDots();
@@ -239,17 +251,16 @@ function updateStatusDots() {
 document.getElementById("setting-mic-toggle").addEventListener("change", updateStatusDots);
 
 async function saveAppSettings() {
-    const inputBackendUrl = document.getElementById("setting-backend-url").value.trim();
-    if (inputBackendUrl) {
-        BACKEND_URL = inputBackendUrl;
-        localStorage.setItem("backend_url", inputBackendUrl);
+    const isLocalChecked = document.getElementById("setting-dev-local").checked;
+    if (isLocalChecked) {
+        BACKEND_URL = "http://127.0.0.1:8000";
+        localStorage.setItem("backend_url", "http://127.0.0.1:8000");
     } else {
-        BACKEND_URL = window.location.origin;
-        localStorage.removeItem("backend_url");
+        const defaultOrigin = (window.location.origin === "null" || window.location.origin.startsWith("file://") || !window.location.origin.startsWith("http")) ? "http://127.0.0.1:8000" : window.location.origin;
+        BACKEND_URL = defaultOrigin;
+        localStorage.setItem("backend_url", defaultOrigin);
     }
-    
     settings.learning_language = document.getElementById("setting-learning-lang").value;
-    settings.local_storage_path = document.getElementById("setting-storage-path").value.trim();
     
     // Save theme setting
     const selectedTheme = document.getElementById("setting-screen-theme").value;
@@ -358,47 +369,56 @@ function handleFileImport(input) {
             alert(`교재 텍스트 파일 (.txt) 로드 완료!\n녹음 버튼을 눌러 연습을 시작해 주세요.`);
         };
         reader.readAsText(file, "utf-8");
-    } else if (extension === "json") {
-        // Read previous JSON evaluation and restore dashboard results
+    } else if (extension === "txt") {
+        // Read text locally using FileReader API
         const reader = new FileReader();
         reader.onload = (e) => {
-            try {
-                const evalData = JSON.parse(e.target.result);
-                // Override with actual json filename to resolve top-name text mismatches
-                evalData.file_name = file.name;
-                
-                forceViewMode();
-                restoreEvaluationFromData(evalData);
-                
-                // Disable all action buttons on static history logs
-                const btnExtract = document.getElementById("btn-func-extract");
-                const btnRecord = document.getElementById("btn-func-record");
-                const btnStop = document.getElementById("btn-func-stop");
-                const btnEval = document.getElementById("btn-func-evaluate");
-                
-                [btnExtract, btnRecord, btnStop, btnEval].forEach(btn => {
-                    if (btn) {
-                        btn.disabled = true;
-                        btn.classList.add("disabled");
-                    }
-                });
-                
-                // Disable edit button for static json log
-                const btnEdit = document.getElementById("btn-edit-text-toggle");
-                if (btnEdit) {
-                    btnEdit.disabled = true;
-                    btnEdit.classList.add("disabled");
+            const rawText = e.target.result;
+            // Set text values
+            document.getElementById("raw-text-editor").value = rawText;
+            document.getElementById("label-active-filename").textContent = file.name;
+            
+            // Clean view highlights card and reset score displays (txt is new practice)
+            resetEvaluationDisplay();
+            
+            // Force view mode so the loaded text is shown immediately
+            forceViewMode();
+            
+            // Set raw text into viewer
+            renderRawTextView(rawText);
+            updateWordCounters();
+            
+            // Enable practice buttons, disable stopped/evaluate
+            const btnExtract = document.getElementById("btn-func-extract");
+            const btnRecord = document.getElementById("btn-func-record");
+            const btnStop = document.getElementById("btn-func-stop");
+            const btnEval = document.getElementById("btn-func-evaluate");
+            
+            [btnExtract, btnRecord].forEach(btn => {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.classList.remove("disabled");
                 }
-                
-                alert(`이력 결과 파일 (.json) 복원 완료!\n단어를 클릭하면 녹음 구간을 들을 수 있습니다.`);
-            } catch (err) {
-                alert("올바른 JSON 평가 파일 형식이 아닙니다.");
-                console.error("JSON parse error:", err);
+            });
+            [btnStop, btnEval].forEach(btn => {
+                if (btn) {
+                    btn.disabled = true;
+                    btn.classList.add("disabled");
+                }
+            });
+            
+            // Re-enable edit button
+            const btnEdit = document.getElementById("btn-edit-text-toggle");
+            if (btnEdit) {
+                btnEdit.disabled = false;
+                btnEdit.classList.remove("disabled");
             }
+            
+            alert(`교재 텍스트 파일 (.txt) 로드 완료!\n녹음 버튼을 눌러 연습을 시작해 주세요.`);
         };
         reader.readAsText(file, "utf-8");
     } else {
-        alert("지원하지 않는 파일 형식입니다. .txt, .json, .pdf 파일만 가능합니다.");
+        alert("지원하지 않는 파일 형식입니다. .txt, .pdf 파일만 가능합니다.");
     }
     
     // Clear input
@@ -439,22 +459,24 @@ function renderRawTextView(text) {
     });
 }
 
-function resetEvaluationDisplay() {
+function resetEvaluationDisplay(keepAudio = false) {
     document.getElementById("stat-overall-score").textContent = "--";
     document.getElementById("stat-overall-score").style.background = "";
     document.getElementById("stat-overall-score").style.webkitTextFillColor = "";
     document.getElementById("stat-overall-score").style.webkitBackgroundClip = "";
     document.getElementById("stat-summary-feedback").textContent = "평가를 진행하시면 이곳에 오발음 분석 리포트가 표시됩니다.";
     
-    const player = document.getElementById("evaluation-audio-player");
-    player.src = "";
-    const playbackIcon = document.getElementById("icon-playback-state");
-    if (playbackIcon) playbackIcon.className = "fa-solid fa-circle-play";
-    
-    recordedWavBlob = null;
-    currentAudioUrl = null;
-    wordPlaybackStopTime = null;
-    savedRecordingInfo = null; // 이전 녹음 세션 저장 정보 초기화
+    if (!keepAudio) {
+        const player = document.getElementById("evaluation-audio-player");
+        player.src = "";
+        const playbackIcon = document.getElementById("icon-playback-state");
+        if (playbackIcon) playbackIcon.className = "fa-solid fa-circle-play";
+        
+        recordedWavBlob = null;
+        currentAudioUrl = null;
+        wordPlaybackStopTime = null;
+        savedRecordingInfo = null; // 이전 녹음 세션 저장 정보 초기화
+    }
     
     // Reset evaluation and recording button states
     const btnStop = document.getElementById("btn-func-stop");
@@ -465,8 +487,13 @@ function resetEvaluationDisplay() {
     
     const btnEval = document.getElementById("btn-func-evaluate");
     if (btnEval) {
-        btnEval.disabled = true; // Disabled initially until recording is complete
-        btnEval.classList.add("disabled");
+        if (keepAudio && recordedWavBlob) {
+            btnEval.disabled = false;
+            btnEval.classList.remove("disabled");
+        } else {
+            btnEval.disabled = true; // Disabled initially until recording is complete
+            btnEval.classList.add("disabled");
+        }
     }
     
     const btnRecord = document.getElementById("btn-func-record");
@@ -485,7 +512,7 @@ function restoreEvaluationFromData(data) {
     // 2. Score details display
     const score = parseFloat(data.overall_score || 0);
     const overallDisplay = document.getElementById("stat-overall-score");
-    overallDisplay.textContent = score.toFixed(1);
+    overallDisplay.textContent = Math.round(score);
     
     if (score >= 85) {
         overallDisplay.style.background = "linear-gradient(135deg, var(--score-gradient-start) 40%, var(--color-high) 100%)";
@@ -586,7 +613,9 @@ async function runPdfPageExtraction() {
         if (response.ok) {
             const res = await response.json();
             document.getElementById("raw-text-editor").value = res.raw_text;
-            document.getElementById("label-active-filename").textContent = `${uploadedPdfFile.name} (p.${pageNum})`;
+            const baseName = uploadedPdfFile.name.replace(/\.pdf$/i, "");
+            activeFilename = `${baseName}_p${pageNum}.txt`;
+            document.getElementById("label-active-filename").textContent = activeFilename;
             
             resetEvaluationDisplay();
             forceViewMode();
@@ -679,7 +708,7 @@ function toggleTextEditMode() {
         saveBtn.classList.add("hidden");
         
         renderRawTextView(textEditor.value);
-        resetEvaluationDisplay(); // Reset evaluation display so they can record and evaluate again
+        resetEvaluationDisplay(true); // Reset evaluation display but keep recording audio
         
         // Auto-save the text! (silent: alert 없이 저장)
         saveEditedText(true);
@@ -693,23 +722,46 @@ async function saveEditedText(silent = false) {
         return;
     }
     
+    let filenameToSave = activeFilename;
+    if (!silent || activeFilename === "새텍스트.txt" || !activeFilename || activeFilename.trim() === "") {
+        let defaultName = activeFilename ? activeFilename.replace(/\.txt$/i, "") : "";
+        if (defaultName === "새텍스트") {
+            defaultName = "";
+        }
+        let userFilename = prompt("저장할 파일명을 입력해 주세요:", defaultName);
+        if (userFilename === null) {
+            return; // Cancelled
+        }
+        userFilename = userFilename.trim();
+        if (!userFilename) {
+            alert("올바른 파일명을 입력해 주세요.");
+            return;
+        }
+        if (!userFilename.toLowerCase().endsWith(".txt")) {
+            userFilename += ".txt";
+        }
+        filenameToSave = userFilename;
+        activeFilename = filenameToSave;
+        document.getElementById("label-active-filename").textContent = activeFilename;
+    }
+    
     try {
+        const currentLang = document.getElementById("setting-learning-lang")?.value || settings.learning_language || "ja-JP";
         const response = await fetch(`${BACKEND_URL}/api/save-text`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-                file_name: activeFilename,
-                text: rawText
+                file_name: filenameToSave,
+                text: rawText,
+                language: currentLang
             })
         });
         
         if (response.ok) {
             const res = await response.json();
-            if (!silent) {
-                alert(`수정된 텍스트가 [${res.file_name}] 파일로 지정된 저장 폴더에 저장되었습니다!`);
-            } else {
-                console.log(`텍스트 자동 저장 완료: ${res.file_name}`);
-            }
+            activeFilename = res.file_name;
+            document.getElementById("label-active-filename").textContent = activeFilename;
+            console.log(`텍스트 저장 완료: ${res.file_name}`);
         } else {
             if (!silent) alert("텍스트 파일 저장에 실패했습니다.");
         }
@@ -723,6 +775,12 @@ async function saveEditedText(silent = false) {
 // Voice Recording (Noise Gating & 2-Minute Cutoff)
 // -----------------
 async function startMobileRecording() {
+    // 파일명 저장 여부 체크 (새텍스트.txt가 없거나 빈값인 경우 녹음 불가)
+    if (!activeFilename || activeFilename === "새텍스트.txt" || activeFilename.trim() === "") {
+        alert("⚠️ [파일저장 누락]\n녹음을 시작하기 전에 먼저 본문 텍스트를 저장하여 파일명을 지정해 주세요.");
+        return;
+    }
+
     const btnRecord = document.getElementById("btn-func-record");
     const btnStop = document.getElementById("btn-func-stop");
     const btnEval = document.getElementById("btn-func-evaluate");
@@ -732,6 +790,19 @@ async function startMobileRecording() {
     btnRecord.classList.add("disabled");
     
     try {
+        // 기존 녹음 데이터 및 오디오 객체 URL 명시적 초기화
+        if (currentAudioUrl) {
+            URL.revokeObjectURL(currentAudioUrl);
+            currentAudioUrl = null;
+        }
+        recordedWavBlob = null;
+        savedRecordingInfo = null;
+        
+        const player = document.getElementById("evaluation-audio-player");
+        if (player) {
+            player.src = "";
+        }
+        
         // Turn off settings microphone test if it is running
         stopMicTest();
         document.getElementById("setting-mic-toggle").checked = false;
@@ -762,9 +833,8 @@ async function startMobileRecording() {
         indicator.className = "recording-status-indicator recording";
         icon.className = "fa-solid fa-play";
         
-        recordedWavBlob = null;
         recordingSecondsElapsed = 0;
-        timerLabel.textContent = `2:00`;
+        timerLabel.textContent = `1:30`;
         
         // Set 30-second silence detector timeout
         voiceCheckTimeout = setTimeout(() => {
@@ -793,7 +863,7 @@ async function startMobileRecording() {
         
     } catch (err) {
         console.error("Recording start error:", err);
-        alert("마이크 입력 오류. 권한을 확인하세요.");
+        alert("설정에서 마이크 사용여부를 확인하세요.");
         btnRecord.disabled = false;
         btnRecord.classList.remove("disabled");
     }
@@ -900,30 +970,47 @@ async function submitAssessment() {
     }
     
     const btn = document.getElementById("btn-func-evaluate");
-    btn.innerHTML = "<i class='fa-solid fa-spinner fa-spin'></i>";
-    btn.disabled = true;
-    
-    const formData = new FormData();
-    formData.append("file_name", activeFilename);
-    formData.append("page_number", activePageNumber);
-    formData.append("raw_text", rawText);
-    
-    const normalizedText = quickNormalizeText(rawText);
-    formData.append("normalized_text", normalizedText);
-    formData.append("audio", recordedWavBlob, "recording.wav");
-
-    // 중지 시 저장된 버전이 있으면 evaluate에 전달 (MP3 중복 생성 방지)
-    if (savedRecordingInfo && savedRecordingInfo.version != null) {
-        formData.append("pre_saved_version", savedRecordingInfo.version);
-        console.log("pre_saved_version 전달:", savedRecordingInfo.version);
+    if (btn) {
+        btn.innerHTML = "<i class='fa-solid fa-spinner fa-spin'></i>";
+        btn.disabled = true;
     }
     
     let success = false;
+    let isTimeout = false;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+        isTimeout = true;
+        controller.abort();
+    }, 9000); // 9 seconds timeout
+    
     try {
+        const formData = new FormData();
+        formData.append("file_name", activeFilename);
+        formData.append("page_number", activePageNumber);
+        formData.append("raw_text", rawText);
+        
+        const normalizedText = quickNormalizeText(rawText);
+        formData.append("normalized_text", normalizedText);
+        formData.append("audio", recordedWavBlob, "recording.wav");
+        
+        // 설정화면의 학습언어설정 값을 확인하여 함께 전달 (안전하게 취득)
+        const learningLangSelect = document.getElementById("setting-learning-lang");
+        const learningLang = learningLangSelect ? learningLangSelect.value : (settings.learning_language || "ja-JP");
+        formData.append("learning_language", learningLang);
+
+        // 중지 시 저장된 버전이 있으면 evaluate에 전달 (MP3 중복 생성 방지)
+        if (savedRecordingInfo && savedRecordingInfo.version != null) {
+            formData.append("pre_saved_version", savedRecordingInfo.version);
+            console.log("pre_saved_version 전달:", savedRecordingInfo.version);
+        }
+        
         const response = await fetch(`${BACKEND_URL}/api/evaluate`, {
             method: "POST",
-            body: formData
+            body: formData,
+            signal: controller.signal
         });
+        
+        clearTimeout(timeoutId);
         
         if (response.ok) {
             const evalResult = await response.json();
@@ -986,8 +1073,13 @@ async function submitAssessment() {
             alert(`평가 오류: ${err.detail || "서버 통신 오류"}`);
         }
     } catch (err) {
-        console.error("Evaluation exception:", err);
-        alert("서버 통신 실패");
+        clearTimeout(timeoutId);
+        if (err.name === "AbortError" || isTimeout) {
+            alert("평가 시간 초과: 9초 동안 서버로부터 응답이 없어 평가를 강제 중단합니다.");
+        } else {
+            console.error("Evaluation exception:", err);
+            alert("서버 통신 실패");
+        }
     } finally {
         const btnEval = document.getElementById("btn-func-evaluate");
         if (btnEval) {
@@ -1245,6 +1337,266 @@ function applyScreenTheme(theme) {
         document.body.classList.remove("theme-white");
     }
     localStorage.setItem("screen_theme", theme);
+}
+
+// -----------------
+// Load & Display Supabase Evaluation Result History
+// -----------------
+async function showResultHistory() {
+    if (!supabaseClient) {
+        alert("Supabase 클라이언트가 초기화되지 않았습니다. 잠시 후 다시 시도해 주세요.");
+        return;
+    }
+
+    const container = document.getElementById("history-container");
+    if (!container) return;
+
+    container.innerHTML = `<div style="text-align: center; color: var(--text-muted); padding: 20px;">불러오는 중...</div>`;
+    toggleDrawer('history', true);
+
+    try {
+        const sessionRes = await supabaseClient.auth.getSession();
+        const session = sessionRes.data?.session;
+        const userId = session?.user?.id;
+
+        if (!userId) {
+            container.innerHTML = `<div style="text-align: center; color: var(--color-low); padding: 20px; font-weight: bold;">로그인이 필요한 서비스입니다.</div>`;
+            return;
+        }
+
+        const { data, error } = await supabaseClient
+            .from('user_records')
+            .select('textbook, testcount, score, created_at, feedback')
+            .eq('user_id', userId)
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        if (!data || data.length === 0) {
+            container.innerHTML = `<div style="text-align: center; color: var(--text-muted); padding: 20px;">저장된 평가 이력이 없습니다.</div>`;
+            return;
+        }
+
+        container.innerHTML = "";
+        data.forEach(item => {
+            const card = document.createElement("div");
+            card.className = "history-item";
+            card.style.border = "1px solid var(--border-light)";
+            card.style.borderRadius = "12px";
+            card.style.padding = "14px";
+            card.style.background = "rgba(255, 255, 255, 0.02)";
+            card.style.display = "flex";
+            card.style.flexDirection = "column";
+            card.style.gap = "8px";
+
+            // Formatting score color
+            let scoreColor = "var(--color-low)";
+            const scoreVal = Math.round(parseFloat(item.score || 0));
+            if (scoreVal >= 85) {
+                scoreColor = "var(--color-high)";
+            } else if (scoreVal >= 60) {
+                scoreColor = "var(--color-mid)";
+            }
+
+            // Date parsing
+            let formattedDate = item.created_at;
+            try {
+                if (item.created_at) {
+                    const date = new Date(item.created_at);
+                    const yyyy = date.getFullYear();
+                    const mm = String(date.getMonth() + 1).padStart(2, '0');
+                    const dd = String(date.getDate()).padStart(2, '0');
+                    const hh = String(date.getHours()).padStart(2, '0');
+                    const min = String(date.getMinutes()).padStart(2, '0');
+                    const ss = String(date.getSeconds()).padStart(2, '0');
+                    formattedDate = `${yyyy}-${mm}-${dd} ${hh}:${min}:${ss}`;
+                }
+            } catch (e) {
+                console.error(e);
+            }
+
+            card.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 6px; margin-bottom: 6px;">
+                    <div style="display: flex; flex-direction: column; gap: 2px;">
+                        <span style="font-weight: 700; font-size: 0.95rem; color: var(--text-main); word-break: break-all;">${item.textbook || '미지정교재'}</span>
+                        <div style="display: flex; gap: 6px; align-items: center; font-size: 0.72rem; color: var(--text-muted);">
+                            <span>${item.testcount ? item.testcount + '회차' : '1회차'}</span>
+                            <span style="opacity: 0.4;">|</span>
+                            <span>${formattedDate}</span>
+                        </div>
+                    </div>
+                    <span style="font-weight: 800; font-size: 1.15rem; color: ${scoreColor}; white-space: nowrap;">${scoreVal}점</span>
+                </div>
+                <div style="font-size: 0.85rem; color: var(--text-main); line-height: 1.4; white-space: pre-wrap; word-break: break-all;">${item.feedback || '평가 내역 없음'}</div>
+            `;
+            container.appendChild(card);
+        });
+
+    } catch (err) {
+        console.error("Failed to load result history:", err);
+        container.innerHTML = `<div style="text-align: center; color: var(--color-low); padding: 20px;">이력을 불러오는 중 오류가 발생했습니다.</div>`;
+    }
+}
+
+// -----------------
+// Enter Direct Text Input Mode
+// -----------------
+function enterTextInputMode() {
+    const textViewer = document.getElementById("text-highlight-viewer");
+    const textEditor = document.getElementById("raw-text-editor");
+    const editToggleIcon = document.getElementById("icon-edit-toggle");
+    const saveBtn = document.getElementById("btn-save-edited-text");
+    
+    isEditingText = true;
+    
+    textViewer.classList.add("hidden");
+    textEditor.classList.remove("hidden");
+    editToggleIcon.className = "fa-solid fa-check";
+    saveBtn.classList.remove("hidden");
+    
+    textEditor.value = ""; // Start with empty editor
+    textEditor.focus();
+    updateWordCounters();
+    
+    activeFilename = "";
+    document.getElementById("label-active-filename").textContent = "교재 없음 (저장 필요)";
+    
+    resetEvaluationDisplay();
+}
+
+// -----------------
+// DB Evaluation History Loader
+// -----------------
+async function loadDbHistory() {
+    const listContainer = document.getElementById("db-evaluation-history-list");
+    if (!listContainer) return;
+    
+    listContainer.innerHTML = `<div style="text-align: center; color: var(--text-muted); padding: 15px; font-size: 0.8rem;"><i class="fa-solid fa-spinner fa-spin"></i> 이력 불러오는 중...</div>`;
+    
+    try {
+        const response = await fetch(`${BACKEND_URL}/api/db-history`);
+        if (!response.ok) throw new Error("Failed to fetch history");
+        
+        const historyData = await response.json();
+        if (historyData.length === 0) {
+            listContainer.innerHTML = `<div style="text-align: center; color: var(--text-muted); padding: 15px; font-size: 0.8rem;">저장된 평가 이력이 없습니다.</div>`;
+            return;
+        }
+        
+        listContainer.innerHTML = "";
+        historyData.forEach(item => {
+            const itemDiv = document.createElement("div");
+            itemDiv.style.display = "flex";
+            itemDiv.style.justifyContent = "space-between";
+            itemDiv.style.alignItems = "center";
+            itemDiv.style.padding = "8px 12px";
+            itemDiv.style.background = "rgba(255, 255, 255, 0.03)";
+            itemDiv.style.border = "1px solid var(--border-light)";
+            itemDiv.style.borderRadius = "6px";
+            itemDiv.style.cursor = "pointer";
+            itemDiv.style.transition = "background 0.2s";
+            
+            itemDiv.onmouseover = () => { itemDiv.style.background = "rgba(255, 255, 255, 0.08)"; };
+            itemDiv.onmouseout = () => { itemDiv.style.background = "rgba(255, 255, 255, 0.03)"; };
+            
+            // Format score color
+            let scoreColor = "var(--color-low)";
+            if (item.overall_score >= 85) scoreColor = "var(--color-high)";
+            else if (item.overall_score >= 60) scoreColor = "var(--color-mid)";
+            
+            itemDiv.innerHTML = `
+                <div style="display: flex; flex-direction: column; gap: 2px; text-align: left; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; max-width: 75%;">
+                    <strong style="font-size: 0.85rem; color: var(--text-main); text-overflow: ellipsis; overflow: hidden;">${item.file_name}</strong>
+                    <span style="font-size: 0.7rem; color: var(--text-muted);">버전 ${item.version} | ${item.created_at}</span>
+                </div>
+                <span style="font-weight: 700; font-size: 0.9rem; color: ${scoreColor};">${item.overall_score}점</span>
+            `;
+            
+            itemDiv.onclick = () => loadDbEvaluationDetail(item.file_name, item.version);
+            listContainer.appendChild(itemDiv);
+        });
+    } catch (err) {
+        console.error("DB history load error:", err);
+        listContainer.innerHTML = `<div style="text-align: center; color: var(--color-low); padding: 15px; font-size: 0.8rem;">이력을 불러오지 못했습니다.</div>`;
+    }
+}
+
+async function loadDbEvaluationDetail(fileName, version) {
+    toggleDrawer('file-upload', false);
+    
+    try {
+        const response = await fetch(`${BACKEND_URL}/api/db-history/${encodeURIComponent(fileName)}/${version}`);
+        if (!response.ok) throw new Error("Failed to fetch detail");
+        
+        const evalData = await response.json();
+        
+        const onlyTxtChecked = document.getElementById("db-history-only-txt-checkbox")?.checked;
+        if (onlyTxtChecked) {
+            const rawText = evalData.raw_text || "";
+            document.getElementById("raw-text-editor").value = rawText;
+            activeFilename = fileName.endsWith(".txt") ? fileName : `${fileName}.txt`;
+            document.getElementById("label-active-filename").textContent = activeFilename;
+            
+            resetEvaluationDisplay();
+            forceViewMode();
+            renderRawTextView(rawText);
+            updateWordCounters();
+            
+            // Enable practice controls
+            const btnExtract = document.getElementById("btn-func-extract");
+            const btnRecord = document.getElementById("btn-func-record");
+            const btnStop = document.getElementById("btn-func-stop");
+            const btnEval = document.getElementById("btn-func-evaluate");
+            
+            [btnExtract, btnRecord].forEach(btn => {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.classList.remove("disabled");
+                }
+            });
+            [btnStop, btnEval].forEach(btn => {
+                if (btn) {
+                    btn.disabled = true;
+                    btn.classList.add("disabled");
+                }
+            });
+            
+            const btnEdit = document.getElementById("btn-edit-text-toggle");
+            if (btnEdit) {
+                btnEdit.disabled = false;
+                btnEdit.classList.remove("disabled");
+            }
+            
+            alert(`교재 텍스트 [${fileName}] 복원 완료!\n녹음 버튼을 눌러 연습을 시작해 주세요.`);
+            return;
+        }
+        
+        forceViewMode();
+        restoreEvaluationFromData(evalData);
+        
+        // Disable practice buttons as on static history logs
+        const btnExtract = document.getElementById("btn-func-extract");
+        const btnRecord = document.getElementById("btn-func-record");
+        const btnStop = document.getElementById("btn-func-stop");
+        const btnEval = document.getElementById("btn-func-evaluate");
+        
+        [btnExtract, btnRecord, btnStop, btnEval].forEach(btn => {
+            if (btn) {
+                btn.disabled = true;
+                btn.classList.add("disabled");
+            }
+        });
+        
+        // Disable edit button for static json log
+        const btnEdit = document.getElementById("btn-edit-text-toggle");
+        if (btnEdit) {
+            btnEdit.disabled = true;
+            btnEdit.classList.add("disabled");
+        }
+    } catch (err) {
+        console.error("Failed to load evaluation detail:", err);
+        alert("평가 이력 상세 데이터를 복원하지 못했습니다.");
+    }
 }
 
 

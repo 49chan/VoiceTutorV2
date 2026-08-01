@@ -86,7 +86,8 @@ def test_config_operations():
         assert loaded.google_vision_ocr_key == "test_ocr_key", "Google OCR Key mismatch"
         assert loaded.google_sheets_webhook_url == "https://webhook.google.com/test", "Webhook URL mismatch"
         assert loaded.learning_language == "ja-JP", "Language mismatch"
-        assert os.path.abspath(loaded.local_storage_path) == os.path.abspath(test_storage), f"Storage path mismatch: Loaded={loaded.local_storage_path}, Expected={test_storage}"
+        expected_storage = get_default_storage_path()
+        assert os.path.abspath(loaded.local_storage_path) == os.path.abspath(expected_storage), f"Storage path mismatch: Loaded={loaded.local_storage_path}, Expected={expected_storage}"
         assert loaded.has_azure_speech is True, "has_azure_speech flag mismatch"
         assert loaded.has_google_sheets is True, "has_google_sheets flag mismatch"
         

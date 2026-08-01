@@ -13,3 +13,5 @@ backend/.secret.key
 *key.json
 .env
 api/settings.json
+.vercel
+.env*

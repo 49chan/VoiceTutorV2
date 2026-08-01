@@ -1,5 +1,20 @@
 # FastAPI Entrypoint for Vercel deployment
 import os
+
+def load_local_env():
+    env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env")
+    if os.path.exists(env_path):
+        with open(env_path, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                if "=" in line:
+                    key, val = line.split("=", 1)
+                    os.environ[key.strip()] = val.strip().strip("'\"")
+
+load_local_env()
+
 import json
 import wave
 import shutil
@@ -106,6 +121,36 @@ def get_next_version(storage_path: str, base_name: str) -> tuple[int, str]:
             return version, version_str
         version += 1
 
+import sys
+
+def get_db_path() -> str:
+    """Returns the environment-specific database path for pronunciation_app.db."""
+    # 1. Android
+    if os.path.exists("/storage/emulated/0"):
+        db_dir = "/storage/emulated/0/Documents/VoiceTutor_Records"
+    # 2. iOS (Usually sandboxed in ~/Documents)
+    elif os.path.exists(os.path.expanduser("~/Documents")) and not sys.platform.startswith("win"):
+        db_dir = os.path.expanduser("~/Documents")
+    # 3. PC (Windows/Mac/Linux) or Vercel
+    else:
+        try:
+            from api.config import load_settings, get_default_storage_path
+        except ImportError:
+            try:
+                from backend.config import load_settings, get_default_storage_path
+            except ImportError:
+                from config import load_settings, get_default_storage_path
+        
+        settings = load_settings()
+        db_dir = settings.local_storage_path or get_default_storage_path()
+        
+    try:
+        os.makedirs(db_dir, exist_ok=True)
+    except Exception:
+        pass
+        
+    return os.path.abspath(os.path.join(db_dir, "pronunciation_app.db"))
+
 def generate_feedback(score: float, language: str) -> str:
     """Generates localized qualitative pronunciation summary feedback."""
     if language == "ja-JP":
@@ -122,13 +167,13 @@ def generate_feedback(score: float, language: str) -> str:
             return "일부 자음동화나 받침 발음의 소리가 명확하지 않습니다. 발성 기관을 크게 열고 천천히 읽어 보세요."
         else:
             return "한국어 특유의 격음/경음 및 받침 소리 교정이 필요합니다. 짧은 단어부터 또박또박 낭독해 보세요."
-    else:  # en-US
+    else:  # en-US (기타 언어 포함)
         if score >= 85:
-            return "Excellent pronunciation! Your word stressing, intonation, and flow are very natural."
+            return "훌륭한 발음입니다! 단어 강세, 억양 및 흐름이 매우 자연스럽습니다."
         elif score >= 60:
-            return "Good job! Focus slightly more on the highlighted vowel clarity and consonant clusters."
+            return "잘하셨습니다! 표시된 모음의 명확성과 자음 결합 발음에 조금 더 집중해 보세요."
         else:
-            return "More practice is recommended. Slow down and focus on clear syllable articulation before speeding up."
+            return "더 많은 연습이 필요합니다. 속도를 내기 전에 천천히 음절을 또박또박 발음하는 연습부터 하세요."
 
 # -----------------
 # API Key Pydantics
@@ -144,6 +189,7 @@ class KeyTestRequestSheet(BaseModel):
 class SaveTextRequest(BaseModel):
     file_name: str
     text: str
+    language: Optional[str] = None
 
 # -----------------
 # Endpoints
@@ -151,9 +197,9 @@ class SaveTextRequest(BaseModel):
 
 @app.post("/api/save-text")
 def api_save_text(req: SaveTextRequest):
-    """Saves manually edited raw text to a .txt file in the local storage directory."""
+    """Saves manually edited raw text to a .txt file in the local storage directory and also stores it in sqlite db."""
     settings = load_settings()
-    storage_path = get_default_storage_path()
+    storage_path = settings.local_storage_path or get_default_storage_path()
     os.makedirs(storage_path, exist_ok=True)
     
     base_name = os.path.splitext(req.file_name)[0]
@@ -169,24 +215,51 @@ def api_save_text(req: SaveTextRequest):
             f.write(req.text)
         logger.info(f"Edited text successfully saved to: {target_path}")
         
-        # Upload .txt to Google Drive if folder ID configured
-        if settings.google_drive_folder_id:
-            try:
-                try:
-                    from api.google_drive import upload_file_to_drive
-                except ImportError:
-                    try:
-                        from google_drive import upload_file_to_drive
-                    except ImportError:
-                        from backend.google_drive import upload_file_to_drive
-                upload_file_to_drive(
-                    file_content=req.text.encode("utf-8"),
-                    filename=target_filename,
-                    mime_type="text/plain",
-                    folder_id=settings.google_drive_folder_id
+        # Save to SQLite database pronunciation_app.db
+        db_path = get_db_path()
+        try:
+            import sqlite3
+            os.makedirs(os.path.dirname(db_path), exist_ok=True)
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+            # Ensure table exists (though it should already be created, we keep this safe fallback)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS practice_sessions (
+                    file_name TEXT,
+                    version INTEGER DEFAULT 1,
+                    language TEXT,
+                    audio_filename NUMERIC,
+                    raw_text TEXT NOT NULL,
+                    normalized_text TEXT,
+                    overall_score INTEGER,
+                    accuracy_score INTEGER,
+                    fluency_score INTEGER,
+                    completeness_score INTEGER,
+                    summary_feedback TEXT,
+                    evaluation_json TEXT,
+                    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                    PRIMARY KEY(file_name, version)
                 )
-            except Exception as ex:
-                logger.error(f"Failed to auto-upload txt to Google Drive: {ex}")
+            """)
+            now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            lang = req.language or settings.learning_language or "ja-JP"
+            cursor.execute("""
+                INSERT INTO practice_sessions (file_name, version, language, raw_text, created_at, updated_at)
+                VALUES (?, 1, ?, ?, ?, ?)
+                ON CONFLICT(file_name, version) DO UPDATE SET
+                    language = excluded.language,
+                    raw_text = excluded.raw_text,
+                    updated_at = excluded.updated_at
+            """, (base_name, lang, req.text, now_str, now_str))
+            conn.commit()
+            conn.close()
+            logger.info(f"Successfully saved to SQLite DB (practice_sessions): {db_path}")
+        except Exception as db_err:
+            logger.error(f"Failed to save to SQLite database: {db_err}")
+        
+        # Upload to Google Drive disabled by user request
+        pass
                 
         return {"status": "success", "file_name": target_filename}
     except Exception as e:
@@ -296,9 +369,8 @@ async def api_extract_page(
             os.remove(temp_pdf_path)
 
 def upload_eval_assets_to_drive(settings, payload, out_json_name, out_mp3_path, out_mp3_name):
-    """Background task to upload pronunciation report JSON and recording MP3 to Google Drive."""
-    if not settings.google_drive_folder_id:
-        return
+    """Background task to upload pronunciation report JSON and recording MP3 to Google Drive (Disabled by request)."""
+    return
     try:
         import json
         try:
@@ -341,7 +413,8 @@ async def api_save_recording(
     중지 버튼 시 호출. WAV를 받아 MP3로 변환 후 recordings 폴더에 저장.
     평가 시 재사용할 수 있도록 version_int와 mp3_filename을 반환.
     """
-    storage_path = get_default_storage_path()
+    settings = load_settings()
+    storage_path = settings.local_storage_path or get_default_storage_path()
     os.makedirs(storage_path, exist_ok=True)
 
     temp_wav_path = os.path.join(TEMP_DIR, f"rec_{datetime.now().timestamp()}.wav")
@@ -382,7 +455,8 @@ async def api_evaluate(
     raw_text: str = Form(...),
     normalized_text: str = Form(...),
     audio: UploadFile = File(...),
-    pre_saved_version: Optional[int] = Form(None)
+    pre_saved_version: Optional[int] = Form(None),
+    learning_language: Optional[str] = Form(None)
 ):
     """
     Core pipeline:
@@ -394,7 +468,7 @@ async def api_evaluate(
     6. Dispatches background worker task to update Google Sheets.
     """
     settings = load_settings()
-    storage_path = get_default_storage_path()
+    storage_path = settings.local_storage_path or get_default_storage_path()
     os.makedirs(storage_path, exist_ok=True)
     
     # Secure raw audio WAV payload to temp directory
@@ -403,8 +477,8 @@ async def api_evaluate(
         with open(temp_wav_path, "wb") as buffer:
             shutil.copyfileobj(audio.file, buffer)
             
-        # Parse language & configure
-        lang = settings.learning_language or "ja-JP"
+        # Parse language & configure (use client-passed language first, then fallback)
+        lang = learning_language or settings.learning_language or "ja-JP"
         
         # Check Azure settings
         has_azure = bool(settings.azure_speech_key and settings.azure_speech_region)
@@ -455,7 +529,7 @@ async def api_evaluate(
         
         # Generate summary feedback & timestamps
         created_at_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        overall_score = eval_result.get("overall_score", 0.0)
+        overall_score = round(float(eval_result.get("overall_score", 0.0)))
         feedback = generate_feedback(overall_score, lang)
         
         # Compile complete log payload
@@ -463,9 +537,9 @@ async def api_evaluate(
             "file_name": file_name,
             "version": version_int,
             "overall_score": overall_score,
-            "accuracy_score": eval_result.get("accuracy_score", 0.0),
-            "fluency_score": eval_result.get("fluency_score", 0.0),
-            "completeness_score": eval_result.get("completeness_score", 100.0),
+            "accuracy_score": round(float(eval_result.get("accuracy_score", 0.0))),
+            "fluency_score": round(float(eval_result.get("fluency_score", 0.0))),
+            "completeness_score": round(float(eval_result.get("completeness_score", 100.0))),
             "created_at": created_at_str,
             "raw_text": raw_text,
             "normalized_text": normalized_text,
@@ -479,6 +553,73 @@ async def api_evaluate(
         # Write JSON Log
         with open(out_json_path, "w", encoding="utf-8") as f:
             json.dump(payload, f, ensure_ascii=False, indent=2)
+            
+        # Save evaluation to SQLite database pronunciation_app.db
+        db_path = get_db_path()
+        try:
+            import sqlite3
+            os.makedirs(os.path.dirname(db_path), exist_ok=True)
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS practice_sessions (
+                    file_name TEXT,
+                    version INTEGER DEFAULT 1,
+                    language TEXT,
+                    audio_filename NUMERIC,
+                    raw_text TEXT NOT NULL,
+                    normalized_text TEXT,
+                    overall_score INTEGER,
+                    accuracy_score INTEGER,
+                    fluency_score INTEGER,
+                    completeness_score INTEGER,
+                    summary_feedback TEXT,
+                    evaluation_json TEXT,
+                    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                    PRIMARY KEY(file_name, version)
+                )
+            """)
+            evaluation_json_str = json.dumps(payload, ensure_ascii=False)
+            cursor.execute("""
+                INSERT INTO practice_sessions (
+                    file_name, version, language, audio_filename, raw_text, normalized_text,
+                    overall_score, accuracy_score, fluency_score, completeness_score,
+                    summary_feedback, evaluation_json, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(file_name, version) DO UPDATE SET
+                    language = excluded.language,
+                    audio_filename = excluded.audio_filename,
+                    raw_text = excluded.raw_text,
+                    normalized_text = excluded.normalized_text,
+                    overall_score = excluded.overall_score,
+                    accuracy_score = excluded.accuracy_score,
+                    fluency_score = excluded.fluency_score,
+                    completeness_score = excluded.completeness_score,
+                    summary_feedback = excluded.summary_feedback,
+                    evaluation_json = excluded.evaluation_json,
+                    updated_at = excluded.updated_at
+            """, (
+                base_name_with_page,
+                version_int,
+                lang,
+                out_mp3_name,
+                raw_text,
+                normalized_text,
+                overall_score,
+                round(float(eval_result.get("accuracy_score", 0.0))),
+                round(float(eval_result.get("fluency_score", 0.0))),
+                round(float(eval_result.get("completeness_score", 100.0))),
+                feedback,
+                evaluation_json_str,
+                created_at_str,
+                created_at_str
+            ))
+            conn.commit()
+            conn.close()
+            logger.info(f"Successfully saved evaluation to SQLite DB: {db_path}")
+        except Exception as db_err:
+            logger.error(f"Failed to save evaluation to SQLite DB: {db_err}")
             
         # Queue Background Task for Google Drive uploads
         if settings.google_drive_folder_id:
@@ -516,15 +657,86 @@ async def api_evaluate(
         raise HTTPException(status_code=500, detail=f"Pronunciation assessment pipeline error: {str(e)}")
         
     finally:
-        # Cleanup temporary WAV file
+        # Cleanup temporary WAV file safely
         if os.path.exists(temp_wav_path):
-            os.remove(temp_wav_path)
+            try:
+                os.remove(temp_wav_path)
+            except Exception as remove_err:
+                logger.warning(f"Failed to cleanup temp WAV file: {remove_err}")
+
+@app.get("/api/db-history")
+def api_get_db_history():
+    """Lists all saved evaluation sessions in SQLite DB ordered by updated_at descending."""
+    db_path = get_db_path()
+    if not os.path.exists(db_path):
+        return []
+    
+    try:
+        import sqlite3
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        
+        # Check if table exists
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='practice_sessions'")
+        if not cursor.fetchone():
+            conn.close()
+            return []
+            
+        cursor.execute("""
+            SELECT file_name, version, overall_score, updated_at, summary_feedback, language 
+            FROM practice_sessions 
+            WHERE evaluation_json IS NOT NULL AND evaluation_json != ''
+            ORDER BY updated_at DESC
+        """)
+        rows = cursor.fetchall()
+        conn.close()
+        
+        history = []
+        for r in rows:
+            history.append({
+                "file_name": r[0],
+                "version": r[1],
+                "overall_score": r[2] if r[2] is not None else 0,
+                "created_at": r[3],
+                "summary_feedback": r[4] or "",
+                "language": r[5] or "ja-JP"
+            })
+        return history
+    except Exception as e:
+        logger.error(f"Failed to query SQLite DB history: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to query DB history: {str(e)}")
+
+@app.get("/api/db-history/{file_name}/{version}")
+def api_get_db_history_detail(file_name: str, version: int):
+    """Retrieves full evaluation_json for a specific file_name and version from SQLite DB."""
+    db_path = get_db_path()
+    if not os.path.exists(db_path):
+        raise HTTPException(status_code=404, detail="DB file not found.")
+        
+    try:
+        import sqlite3
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT evaluation_json FROM practice_sessions 
+            WHERE file_name = ? AND version = ?
+        """, (file_name, version))
+        row = cursor.fetchone()
+        conn.close()
+        
+        if not row or not row[0]:
+            raise HTTPException(status_code=404, detail="Evaluation record or JSON not found.")
+            
+        return json.loads(row[0])
+    except Exception as e:
+        logger.error(f"Failed to read evaluation JSON from DB: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to read record from DB: {str(e)}")
 
 @app.get("/api/history")
 def api_get_history():
     """Lists all saved evaluation JSON files ordered by creation date descending."""
     settings = load_settings()
-    storage_path = get_default_storage_path()
+    storage_path = settings.local_storage_path or get_default_storage_path()
     
     if not os.path.exists(storage_path):
         return []
@@ -559,7 +771,7 @@ def api_get_history():
 def api_get_history_detail(filename: str):
     """Retrieves full JSON details of a specific historical evaluation log."""
     settings = load_settings()
-    storage_path = get_default_storage_path()
+    storage_path = settings.local_storage_path or get_default_storage_path()
     file_path = os.path.join(storage_path, filename)
     
     if not os.path.exists(file_path) or not filename.lower().endswith(".json"):
@@ -575,7 +787,7 @@ def api_get_history_detail(filename: str):
 def api_get_history_audio(filename: str):
     """Streams the saved evaluation MP3 file from local storage."""
     settings = load_settings()
-    storage_path = get_default_storage_path()
+    storage_path = settings.local_storage_path or get_default_storage_path()
     file_path = os.path.join(storage_path, filename)
     
     # Strip path injections
