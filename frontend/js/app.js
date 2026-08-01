@@ -203,13 +203,19 @@ async function loadAppSettings() {
             settings = await response.json();
             
             // Populate form fields
-            const defaultUrl = window.location.origin;
-            const savedUrl = localStorage.getItem("backend_url") || defaultUrl;
-            const isLocal = (savedUrl === "http://127.0.0.1:8000" && defaultUrl !== "http://127.0.0.1:8000");
+            const isLocal = localStorage.getItem("dev_local_checked") === "true";
             const devLocalCheckbox = document.getElementById("setting-dev-local");
             if (devLocalCheckbox) {
                 devLocalCheckbox.checked = isLocal;
             }
+            
+            const localUrlInput = document.getElementById("setting-dev-local-url");
+            if (localUrlInput) {
+                localUrlInput.value = localStorage.getItem("dev_local_url") || "";
+            }
+            
+            toggleDevLocalUrlField();
+            
             document.getElementById("setting-learning-lang").value = settings.learning_language || "ja-JP";
             
             // Update status dots indicators
@@ -220,6 +226,18 @@ async function loadAppSettings() {
         }
     } catch (err) {
         console.error("Failed to load settings from server:", err);
+    }
+}
+
+function toggleDevLocalUrlField() {
+    const checkbox = document.getElementById("setting-dev-local");
+    const container = document.getElementById("dev-local-url-container");
+    if (checkbox && container) {
+        if (checkbox.checked) {
+            container.style.display = "flex";
+        } else {
+            container.style.display = "none";
+        }
     }
 }
 
@@ -252,9 +270,18 @@ document.getElementById("setting-mic-toggle").addEventListener("change", updateS
 
 async function saveAppSettings() {
     const isLocalChecked = document.getElementById("setting-dev-local").checked;
+    localStorage.setItem("dev_local_checked", isLocalChecked ? "true" : "false");
+    
     if (isLocalChecked) {
-        BACKEND_URL = "http://127.0.0.1:8000";
-        localStorage.setItem("backend_url", "http://127.0.0.1:8000");
+        const customUrl = document.getElementById("setting-dev-local-url").value.trim();
+        localStorage.setItem("dev_local_url", customUrl);
+        if (customUrl) {
+            BACKEND_URL = customUrl;
+            localStorage.setItem("backend_url", customUrl);
+        } else {
+            BACKEND_URL = "http://127.0.0.1:8000";
+            localStorage.setItem("backend_url", "http://127.0.0.1:8000");
+        }
     } else {
         const defaultOrigin = (window.location.origin === "null" || window.location.origin.startsWith("file://") || !window.location.origin.startsWith("http")) ? "http://127.0.0.1:8000" : window.location.origin;
         BACKEND_URL = defaultOrigin;

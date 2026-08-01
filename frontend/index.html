@@ -382,10 +382,16 @@
                         </select>
                     </div>
 
-                    <!-- Developer Local Test Checkbox -->
-                    <div class="form-group" style="display: flex; align-items: center; justify-content: space-between; background: rgba(255,255,255,0.02); padding: 12px; border-radius: 8px; border: 1px solid var(--border-light); margin-top: 15px;">
-                        <label class="form-label" for="setting-dev-local" style="margin-bottom: 0; cursor: pointer;">개발자 로컬테스트</label>
-                        <input type="checkbox" id="setting-dev-local" style="width: 20px; height: 20px; accent-color: var(--color-primary);">
+                    <!-- Developer Local Test Checkbox & URL -->
+                    <div class="form-group" style="display: flex; flex-direction: column; background: rgba(255,255,255,0.02); padding: 12px; border-radius: 8px; border: 1px solid var(--border-light); margin-top: 15px; gap: 10px;">
+                        <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                            <label class="form-label" for="setting-dev-local" style="margin-bottom: 0; cursor: pointer;">개발자 로컬테스트</label>
+                            <input type="checkbox" id="setting-dev-local" onchange="toggleDevLocalUrlField()" style="width: 20px; height: 20px; accent-color: var(--color-primary);">
+                        </div>
+                        <div id="dev-local-url-container" style="display: none; flex-direction: column; gap: 4px;">
+                            <span style="font-size: 0.72rem; color: var(--text-muted);">로컬 서버 URL (비워둘 시 127.0.0.1:8000 자동 지정)</span>
+                            <input type="text" id="setting-dev-local-url" class="form-input" placeholder="http://192.168.0.X:8000" style="background-color: var(--bg-secondary); font-size: 0.82rem;">
+                        </div>
                     </div>
 
                     <button class="btn btn-primary" id="btn-save-settings" onclick="saveAppSettings()" style="width: 100%; margin-top: 15px;">
