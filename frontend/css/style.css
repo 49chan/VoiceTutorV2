@@ -107,6 +107,7 @@ body {
     background: linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%);
     border: none;
     box-shadow: 0 4px 15px rgba(99, 102, 241, 0.25);
+    color: #ffffff !important;
 }
 
 .btn-primary:active {
@@ -178,7 +179,33 @@ body {
     letter-spacing: -0.02em;
 }
 
+.landing-slogan .highlight-tutor {
+    background: linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.slogan-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 24px;
+    width: 100%;
+    max-width: 290px;
+    margin-top: 10px;
+}
+
+.landing-description {
+    font-size: 0.88rem;
+    color: rgba(253, 186, 116, 0.85);
+    text-align: center;
+    line-height: 1.5;
+    font-weight: 500;
+    word-break: keep-all;
+}
+
 .landing-image-container {
+    position: relative;
     width: 100%;
     max-width: 320px;
     aspect-ratio: 1.1;
@@ -814,6 +841,10 @@ body.theme-white .landing-slogan {
     -webkit-text-fill-color: transparent;
 }
 
+body.theme-white .landing-description {
+    color: #ea580c;
+}
+
 body.theme-white .upload-dropzone {
     border: 2px dashed rgba(0, 0, 0, 0.12);
     background: rgba(0, 0, 0, 0.01);
@@ -846,4 +877,116 @@ body.theme-white .recording-status-indicator.stopped i {
 #btn-func-record i { color: #ef4444 !important; } /* red */
 #btn-func-stop i { color: #3b82f6 !important; } /* blue */
 #btn-func-evaluate i { color: #10b981 !important; } /* green */
+
+/* Floating Voice Tutor Chips */
+.voice-chip {
+    position: absolute;
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    border-radius: 16px;
+    padding: 8px 16px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    z-index: 10;
+}
+
+.excellent-chip {
+    bottom: -12px;
+    left: -20px;
+    color: #1f2937;
+    font-size: 0.85rem;
+    font-weight: 600;
+    animation: bounce 2s infinite ease-in-out;
+}
+.excellent-chip i {
+    color: #10b981; /* Success Emerald */
+    font-size: 1.1rem;
+}
+
+.listening-chip {
+    top: -16px;
+    right: -16px;
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 12px 16px;
+    gap: 6px;
+    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.12);
+}
+.listening-text {
+    font-size: 10px;
+    font-weight: 800;
+    color: #6366f1; /* Primary Indigo */
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+}
+
+.voice-wave {
+    display: flex;
+    align-items: flex-end;
+    gap: 4px;
+    height: 24px;
+}
+.voice-wave .bar {
+    width: 8px;
+    background-color: #6366f1;
+    border-radius: 4px;
+    transform-origin: bottom;
+}
+.voice-wave .bar-1 { height: 16px; animation: pulseWave 2s infinite ease-in-out; opacity: 0.4; }
+.voice-wave .bar-2 { height: 24px; animation: pulseWave 2.4s infinite ease-in-out; opacity: 0.6; }
+.voice-wave .bar-3 { height: 12px; animation: pulseWave 1.6s infinite ease-in-out; }
+.voice-wave .bar-4 { height: 20px; animation: pulseWave 2.2s infinite ease-in-out; opacity: 0.7; }
+
+@keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
+}
+@keyframes pulseWave {
+    0%, 100% { transform: scaleY(0.3); }
+    50% { transform: scaleY(1); }
+}
+
+/* Header logo text style */
+.header-logo-text {
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: #4f46e5;
+    letter-spacing: -0.02em;
+}
+body.theme-white .header-logo-text {
+    color: #0b57d0;
+}
+
+/* Sidebar menu items */
+.btn-menu-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    background-color: transparent;
+    border: none;
+    border-radius: 8px;
+    color: var(--text-main) !important;
+    font-family: var(--font-sans);
+    font-size: 0.95rem;
+    font-weight: 500;
+    padding: 12px 14px;
+    cursor: pointer;
+    transition: var(--transition-smooth);
+    width: 100%;
+}
+.btn-menu-item:hover {
+    background-color: rgba(255, 255, 255, 0.08);
+}
+body.theme-white .btn-menu-item:hover {
+    background-color: rgba(0, 0, 0, 0.04);
+}
+
+@keyframes slideRight {
+    from { transform: translateX(-100%); }
+    to { transform: translateX(0); }
+}
 

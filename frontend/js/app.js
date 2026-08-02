@@ -80,12 +80,15 @@ function updateLoginUI() {
     const userName = sessionStorage.getItem("userName");
     const userAvatar = sessionStorage.getItem("userAvatar");
     
+    console.log("[VoiceTutor] updateLoginUI state:", { isSessionLoggedIn, userEmail, userName, userAvatar });
+    
     const startBtn = document.getElementById("btn-landing-start-app");
     const loginBtn = document.getElementById("btn-tab-login");
     const profileHeader = document.getElementById("user-profile-header");
     const avatarImg = document.getElementById("user-avatar");
     const nameSpan = document.getElementById("user-name");
     const emailSpan = document.getElementById("user-email");
+    const menuLoginContainer = document.getElementById("menu-login-info-container");
     
     if (isSessionLoggedIn && userEmail) {
         isLoggedIn = true;
@@ -114,6 +117,23 @@ function updateLoginUI() {
             if (nameSpan) nameSpan.textContent = userName || "사용자";
             if (emailSpan) emailSpan.textContent = userEmail;
         }
+        
+        // Update Menu Drawer Login info
+        if (menuLoginContainer) {
+            menuLoginContainer.innerHTML = `
+                <div style="height: 1px; background: var(--border-light); margin: 8px 0;"></div>
+                <div style="display: flex; align-items: center; gap: 8px; padding: 12px; background: rgba(0,0,0,0.03); border-radius: 8px; border: 1px solid var(--border-light); margin-bottom: 8px;">
+                    <img src="${userAvatar || 'https://lh3.googleusercontent.com/a/default-user=s96-c'}" alt="Profile" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover;">
+                    <div style="display: flex; flex-direction: column; align-items: flex-start; text-align: left; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                        <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-main);">${userName || '사용자'}</span>
+                        <span style="font-size: 0.65rem; color: var(--text-muted); max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${userEmail}</span>
+                    </div>
+                </div>
+                <button class="btn btn-menu-item" onclick="toggleDrawer('menu', false); logoutGoogleUser();" style="justify-content: flex-start; color: #ef4444 !important; padding: 12px; width: 100%;">
+                    <i class="fa-solid fa-arrow-right-from-bracket" style="width: 20px;"></i> 로그아웃
+                </button>
+            `;
+        }
     } else {
         isLoggedIn = false;
         
@@ -132,6 +152,16 @@ function updateLoginUI() {
         // Hide Profile Info
         if (profileHeader) {
             profileHeader.classList.add("hidden");
+        }
+        
+        // Update Menu Drawer Login info (Logged out)
+        if (menuLoginContainer) {
+            menuLoginContainer.innerHTML = `
+                <div style="height: 1px; background: var(--border-light); margin: 8px 0;"></div>
+                <button class="btn btn-menu-item" onclick="toggleDrawer('menu', false); toggleDrawer('login', true);" style="justify-content: flex-start; padding: 12px; width: 100%;">
+                    <i class="fa-solid fa-user-lock" style="width: 20px; color: #10b981; font-size: 1rem;"></i> 로그인 정보
+                </button>
+            `;
         }
     }
 }

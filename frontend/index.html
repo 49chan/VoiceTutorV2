@@ -7,7 +7,7 @@
     <meta name="description" content="AI-based mobile-first pronunciation assessment and text extraction tool.">
     <!-- Google Font & FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="css/style.css?v=1.0.2">
+    <link rel="stylesheet" href="css/style.css?v=1.0.3">
     <!-- Supabase JS Client SDK -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
@@ -27,39 +27,51 @@
         <!-- ========================================== -->
         <div class="screen-view" id="screen-landing">
             <header class="landing-header">
-                <div style="display: flex; gap: 8px;">
-                    <button class="btn btn-tab-header" id="btn-board-open" onclick="toggleDrawer('board', true)">게시판</button>
-                    <button class="btn btn-tab-header" id="btn-landing-manual" onclick="window.open('/VoiceTutor_User_Manual_v2.pdf', '_blank')">사용설명서</button>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <button class="btn-menu-trigger" onclick="toggleDrawer('menu', true)" style="background: none; border: none; color: var(--text-main); font-size: 1.25rem; cursor: pointer; display: flex; align-items: center; padding: 4px;">
+                        <i class="fa-solid fa-bars"></i>
+                    </button>
+                    <span class="header-logo-text">Voice Tutor</span>
                 </div>
                 <div class="header-right-btns" style="display: flex; align-items: center;">
-                    <!-- User Profile Info -->
-                    <div id="user-profile-header" class="hidden" style="display: flex; align-items: center; gap: 8px; margin-right: 12px; border-right: 1px solid var(--border-color, rgba(255,255,255,0.15)); padding-right: 12px;">
-                        <img id="user-avatar" src="" alt="Profile" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover; border: 1px solid #dadce0;">
-                        <div style="display: flex; flex-direction: column; align-items: flex-start; text-align: left; line-height: 1.2;">
-                            <span id="user-name" style="font-size: 0.8rem; font-weight: 600; color: var(--text-normal);"></span>
-                            <span id="user-email" style="font-size: 0.65rem; color: var(--text-muted); max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"></span>
-                        </div>
-                    </div>
-                    <button class="btn btn-tab-header" id="btn-tab-settings" onclick="toggleDrawer('settings', true)"><i class="fa-solid fa-gear"></i> 설정</button>
                     <button class="btn btn-tab-header" id="btn-tab-login" onclick="toggleDrawer('login', true)"><i class="fa-solid fa-user-lock"></i> 로그인</button>
                 </div>
             </header>
 
             <!-- Slogan & Illustration -->
             <main class="landing-body">
-                <h1 class="landing-slogan" id="landing-slogan-text">
-                    나만의 문서가 실시간<br>원어민 튜터가 되다
-                </h1>
+                <div class="slogan-container">
+                    <h1 class="landing-slogan" id="landing-slogan-text">
+                        나만의 문서가 실시간<br><span class="highlight-tutor">원어민 튜터</span>가 되다
+                    </h1>
+                    <p class="landing-description">
+                        준비하신 학습자료나 비지니스 문서를 업로드하세요. AI가 당신의 발음을<br>실시간으로 교정해 드립니다.
+                    </p>
+                </div>
                 
                 <div class="landing-image-container">
-                    <img src="images/tutor_doc_diagram.webp" alt="TutorDoc AI Schema Illustration" class="landing-image" id="landing-schema-image">
+                    <img src="images/voice_tutor_robot.png" alt="Voice Tutor Robot" class="landing-image" id="landing-schema-image">
+                    <!-- Floating UI Chips for high-fidelity feel -->
+                    <div class="voice-chip excellent-chip">
+                        <i class="fa-solid fa-circle-check"></i>
+                        <span>Pronunciation: Excellent</span>
+                    </div>
+                    <div class="voice-chip listening-chip">
+                        <div class="voice-wave">
+                            <div class="bar bar-1"></div>
+                            <div class="bar bar-2"></div>
+                            <div class="bar bar-3"></div>
+                            <div class="bar bar-4"></div>
+                        </div>
+                        <span class="listening-text">Listening...</span>
+                    </div>
                 </div>
 
-                <div class="landing-disclaimer" style="margin-top: 15px; font-size: 0.78rem; line-height: 1.45; color: var(--text-muted); background: rgba(120, 120, 120, 0.03); padding: 12px; border-radius: 8px; border: 1px solid var(--border-light); text-align: left; max-width: 320px; margin-left: auto; margin-right: auto; box-sizing: border-box;">
+                <div class="landing-disclaimer" style="margin-top: 15px; font-size: 0.78rem; line-height: 1.45; color: var(--text-muted); background: rgba(120, 120, 120, 0.03); padding: 12px; border-radius: 8px; border: 1px solid var(--border-light); text-align: left; max-width: 345px; margin-left: auto; margin-right: auto; box-sizing: border-box;">
                     <strong style="color: var(--color-primary); display: flex; align-items: center; gap: 5px; margin-bottom: 5px; font-size: 0.82rem;">
                         <i class="fa-solid fa-circle-info"></i> 테스트 버전 작동 안내
                     </strong>
-                    <span>녹음버튼 시 녹음(.mp3) 파일은 현재 저장되지 않습니다.</span>
+                    <span style="display: block; padding-left: 20px; padding-right: 20px;">평가된 상세결과는 사용시점 1회만 확인할 수 있으며<br>이용하신 지난결과의 확인은 한 줄 피드백과 점수만<br>확인 가능합니다.</span>
                 </div>
 
                 <div class="landing-action-zone">
@@ -71,9 +83,6 @@
 
             <!-- Footer Branding -->
             <footer class="landing-footer">
-                <div class="footer-logo">
-                    <i class="fa-solid fa-wave-square"></i> Voice Tutor <span>AI Business</span>
-                </div>
             </footer>
         </div>
 
@@ -181,6 +190,34 @@
         <!-- DRAWERS & DIALOG OVERLAYS (Mobile-optimized) -->
         <!-- ========================================== -->
         
+        <!-- Menu Drawer -->
+        <div class="drawer-overlay hidden" id="drawer-menu" onclick="if(event.target === this) toggleDrawer('menu', false)">
+            <div class="drawer-card" style="max-height: 90vh; max-width: 320px; align-self: flex-start; height: 100%; border-radius: 0 20px 20px 0; border-right: 1px solid var(--border-light); border-top: none; border-bottom: none; animation: slideRight 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards; position: absolute; left: 0; top: 0; bottom: 0;">
+                <header class="drawer-header" style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 15px; border-bottom: 1px solid var(--border-light);">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <i class="fa-solid fa-wave-square" style="color: var(--color-primary);"></i>
+                        <span style="font-weight: 700; font-size: 1.1rem; letter-spacing: -0.01em;">Voice Tutor 메뉴</span>
+                    </div>
+                    <button class="btn-close-drawer" onclick="toggleDrawer('menu', false)" style="background: none; border: none; font-size: 1.5rem; color: var(--text-muted); cursor: pointer; display: flex; align-items: center; justify-content: center; width: 30px; height: 30px;">&times;</button>
+                </header>
+                <div class="drawer-body" style="display: flex; flex-direction: column; gap: 8px; margin-top: 15px; overflow-y: auto;">
+                    <button class="btn btn-menu-item" onclick="toggleDrawer('menu', false); window.open('/VoiceTutor_User_Manual_v2.pdf', '_blank')" style="justify-content: flex-start; padding: 12px; width: 100%; border: none; background: transparent; text-align: left; font-size: 0.95rem;">
+                        <i class="fa-solid fa-file-pdf" style="width: 20px; color: #ef4444; font-size: 1rem;"></i> 사용설명서
+                    </button>
+                    <button class="btn btn-menu-item" onclick="toggleDrawer('menu', false); toggleDrawer('board', true)" style="justify-content: flex-start; padding: 12px; width: 100%; border: none; background: transparent; text-align: left; font-size: 0.95rem;">
+                        <i class="fa-solid fa-clipboard-list" style="width: 20px; color: #3b82f6; font-size: 1rem;"></i> 게시판 (테스트)
+                    </button>
+                    <div style="height: 1px; background: var(--border-light); margin: 8px 0;"></div>
+                    <button class="btn btn-menu-item" onclick="toggleDrawer('menu', false); toggleDrawer('settings', true)" style="justify-content: flex-start; padding: 12px; width: 100%; border: none; background: transparent; text-align: left; font-size: 0.95rem;">
+                        <i class="fa-solid fa-gear" style="width: 20px; color: #f59e0b; font-size: 1rem;"></i> 설정
+                    </button>
+                    <div id="menu-login-info-container" style="margin-top: 4px;">
+                        <!-- Dynamic Profile/Login Info will be injected here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Drawer 1: 게시판 (BOARD DRAWER) -->
         <div class="drawer-overlay hidden" id="drawer-board">
             <div class="drawer-card">
@@ -420,6 +457,6 @@
 
     <!-- Inject scripts -->
     <script src="js/recorder.js"></script>
-    <script src="js/app.js?v=1.0.4"></script>
+    <script src="js/app.js?v=1.0.5"></script>
 </body>
 </html>
