@@ -517,8 +517,9 @@ function renderRawTextView(text) {
                 if (w.trim()) {
                     const span = document.createElement("span");
                     span.className = "word-span";
-                    span.textContent = w + " ";
+                    span.textContent = w;
                     lineDiv.appendChild(span);
+                    lineDiv.appendChild(document.createTextNode(" "));
                 }
             });
         }
@@ -617,7 +618,7 @@ function restoreEvaluationFromData(data) {
                 if (w.trim()) {
                     const span = document.createElement("span");
                     span.className = "word-span";
-                    span.textContent = w + " ";
+                    span.textContent = w;
                     
                     // Match with evaluated word index
                     if (wordIdx < evalWords.length) {
@@ -638,6 +639,7 @@ function restoreEvaluationFromData(data) {
                         wordIdx++;
                     }
                     lineDiv.appendChild(span);
+                    lineDiv.appendChild(document.createTextNode(" "));
                 }
             });
         }
