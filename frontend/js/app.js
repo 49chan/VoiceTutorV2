@@ -1550,10 +1550,43 @@ async function loadDbHistory() {
     listContainer.innerHTML = `<div style="text-align: center; color: var(--text-muted); padding: 15px; font-size: 0.8rem;"><i class="fa-solid fa-spinner fa-spin"></i> 이력 불러오는 중...</div>`;
     
     try {
-        const response = await fetch(`${BACKEND_URL}/api/db-history`);
-        if (!response.ok) throw new Error("Failed to fetch history");
-        
-        const historyData = await response.json();
+        let historyData = [];
+        if (supabaseClient) {
+            const sessionRes = await supabaseClient.auth.getSession();
+            const session = sessionRes.data?.session;
+            const userId = session?.user?.id;
+            if (userId) {
+                const { data, error } = await supabaseClient
+                    .from('user_records')
+                    .select('textbook, testcount, score, created_at, feedback, audio_filename, raw_text, overall_score, accuracy_score, fluency_score, completeness_score, evaluation_json')
+                    .eq('user_id', userId)
+                    .eq('record_type', 'test')
+                    .order('created_at', { ascending: false });
+                
+                if (error) throw error;
+                
+                historyData = (data || []).map(r => ({
+                    file_name: r.textbook,
+                    version: r.testcount,
+                    overall_score: r.overall_score !== null && r.overall_score !== undefined ? Math.round(r.overall_score) : (r.score || 0),
+                    created_at: new Date(r.created_at).toLocaleString('ko-KR'),
+                    summary_feedback: r.feedback || "",
+                    raw_text: r.raw_text,
+                    audio_filename: r.audio_filename,
+                    accuracy_score: r.accuracy_score,
+                    fluency_score: r.fluency_score,
+                    completeness_score: r.completeness_score,
+                    evaluation_json: r.evaluation_json
+                }));
+            } else {
+                listContainer.innerHTML = `<div style="text-align: center; color: var(--text-muted); padding: 15px; font-size: 0.8rem;">로그인이 필요합니다.</div>`;
+                return;
+            }
+        } else {
+            listContainer.innerHTML = `<div style="text-align: center; color: var(--text-muted); padding: 15px; font-size: 0.8rem;">Supabase 설정이 구성되지 않았습니다.</div>`;
+            return;
+        }
+
         if (historyData.length === 0) {
             listContainer.innerHTML = `<div style="text-align: center; color: var(--text-muted); padding: 15px; font-size: 0.8rem;">저장된 평가 이력이 없습니다.</div>`;
             return;
@@ -1588,29 +1621,42 @@ async function loadDbHistory() {
                 <span style="font-weight: 700; font-size: 0.9rem; color: ${scoreColor};">${item.overall_score}점</span>
             `;
             
-            itemDiv.onclick = () => loadDbEvaluationDetail(item.file_name, item.version);
+            itemDiv.onclick = () => loadDbEvaluationDetail(item);
             listContainer.appendChild(itemDiv);
         });
     } catch (err) {
-        console.error("DB history load error:", err);
+        console.error("Supabase history load error:", err);
         listContainer.innerHTML = `<div style="text-align: center; color: var(--color-low); padding: 15px; font-size: 0.8rem;">이력을 불러오지 못했습니다.</div>`;
     }
 }
 
-async function loadDbEvaluationDetail(fileName, version) {
+async function loadDbEvaluationDetail(item) {
     toggleDrawer('file-upload', false);
     
     try {
-        const response = await fetch(`${BACKEND_URL}/api/db-history/${encodeURIComponent(fileName)}/${version}`);
-        if (!response.ok) throw new Error("Failed to fetch detail");
-        
-        const evalData = await response.json();
+        let evalData = null;
+        if (item.evaluation_json) {
+            evalData = typeof item.evaluation_json === 'string' ? JSON.parse(item.evaluation_json) : item.evaluation_json;
+        } else {
+            evalData = {
+                file_name: item.file_name,
+                version: item.version,
+                overall_score: item.overall_score,
+                accuracy_score: item.accuracy_score || 0,
+                fluency_score: item.fluency_score || 0,
+                completeness_score: item.completeness_score || 100,
+                created_at: item.created_at,
+                raw_text: typeof item.raw_text === 'object' && item.raw_text !== null ? (item.raw_text.text || JSON.stringify(item.raw_text)) : (item.raw_text || ""),
+                summary_feedback: item.summary_feedback,
+                audio_filename: item.audio_filename
+            };
+        }
         
         const onlyTxtChecked = document.getElementById("db-history-only-txt-checkbox")?.checked;
         if (onlyTxtChecked) {
             const rawText = evalData.raw_text || "";
             document.getElementById("raw-text-editor").value = rawText;
-            activeFilename = fileName.endsWith(".txt") ? fileName : `${fileName}.txt`;
+            activeFilename = item.file_name.endsWith(".txt") ? item.file_name : `${item.file_name}.txt`;
             document.getElementById("label-active-filename").textContent = activeFilename;
             
             resetEvaluationDisplay();
@@ -1643,7 +1689,7 @@ async function loadDbEvaluationDetail(fileName, version) {
                 btnEdit.classList.remove("disabled");
             }
             
-            alert(`교재 텍스트 [${fileName}] 복원 완료!\n녹음 버튼을 눌러 연습을 시작해 주세요.`);
+            alert(`교재 텍스트 [${item.file_name}] 복원 완료!\n녹음 버튼을 눌러 연습을 시작해 주세요.`);
             return;
         }
         
