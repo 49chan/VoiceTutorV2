@@ -1561,6 +1561,7 @@ async function loadDbHistory() {
                     .select('textbook, testcount, score, created_at, feedback, audio_filename, raw_text, overall_score, accuracy_score, fluency_score, completeness_score, evaluation_json')
                     .eq('user_id', userId)
                     .eq('record_type', 'test')
+                    .not('evaluation_json', 'is', null)
                     .order('created_at', { ascending: false });
                 
                 if (error) throw error;
