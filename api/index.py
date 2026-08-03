@@ -29,20 +29,20 @@ from pydantic import BaseModel
 
 try:
     from api.config import load_settings, save_settings, AppSettings, get_default_storage_path
-    from api.text_normalizer import clean_text
+    from api.text_normalizer import clean_text, remove_spaces_between_cjk
     from api.security import encrypt_value
     from api.google_sheets import test_sheet_connection, append_evaluation_row
     from api.azure_speech import test_azure_connection, run_pronunciation_assessment, run_mock_assessment
 except ImportError:
     try:
         from backend.config import load_settings, save_settings, AppSettings, get_default_storage_path
-        from backend.text_normalizer import clean_text
+        from backend.text_normalizer import clean_text, remove_spaces_between_cjk
         from backend.security import encrypt_value
         from backend.google_sheets import test_sheet_connection, append_evaluation_row
         from backend.azure_speech import test_azure_connection, run_pronunciation_assessment, run_mock_assessment
     except ImportError:
         from config import load_settings, save_settings, AppSettings, get_default_storage_path
-        from text_normalizer import clean_text
+        from text_normalizer import clean_text, remove_spaces_between_cjk
         from security import encrypt_value
         from google_sheets import test_sheet_connection, append_evaluation_row
         from azure_speech import test_azure_connection, run_pronunciation_assessment, run_mock_assessment
@@ -350,6 +350,8 @@ async def api_extract_page(
             
         page = reader.pages[page_number - 1]
         raw_text = page.extract_text() or ""
+        # Collapses spacing issues commonly found in PDF text extraction for CJK characters
+        raw_text = remove_spaces_between_cjk(raw_text)
         normalized_text = clean_text(raw_text)
         
         return {

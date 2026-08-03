@@ -1,5 +1,23 @@
 import re
 
+def remove_spaces_between_cjk(text: str) -> str:
+    """
+    Collapses spaces that appear between CJK characters (Hiragana, Katakana, Kanji).
+    This fixes issues with PDF text extractors inserting spaces between every character.
+    """
+    if not text:
+        return ""
+    
+    # CJK character range pattern (Hiragana, Katakana, CJK Unified Ideographs / Kanji, Fullwidth Forms)
+    cjk_char_class = r'[\u3000-\u303f\u3040-\u309f\u30a0-\u30ff\uff00-\uffef\u4e00-\u9faf]'
+    pattern = re.compile(f'({cjk_char_class})\\s+({cjk_char_class})')
+    
+    prev_text = ""
+    while text != prev_text:
+        prev_text = text
+        text = pattern.sub(r'\1\2', text)
+    return text
+
 def clean_text(text: str) -> str:
     """
     Cleans raw text by removing unpronounced special characters, parentheses and their contents,
@@ -7,6 +25,9 @@ def clean_text(text: str) -> str:
     """
     if not text:
         return ""
+    
+    # Collapses spaces between CJK characters first
+    text = remove_spaces_between_cjk(text)
     
     # 1. Remove text inside parentheses, square brackets, and curly braces (metadata/non-spoken)
     text = re.sub(r'\([^)]*\)', '', text)          # (standard parentheses)
