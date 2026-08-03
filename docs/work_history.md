@@ -6,7 +6,7 @@
 
 ## 📅 작업 일자: 2026년 7월 25일
 * **프로젝트명**: TutorDoc AI (Mobile Voice Tutor)
-* **원격 저장소**: [https://github.com/49chan/voice_tutor](https://github.com/49chan/voice_tutor)
+* **원격 저장소**: [https://github.com/49chan/VoiceTutorV2](https://github.com/49chan/VoiceTutorV2)
 * **대상 브랜치**: `main`, `master` (모두 동기화 완료)
 
 ---
@@ -52,7 +52,7 @@
 * **서비스 명칭 리브랜딩**:
   * 화면 하단 푸터 로고 브랜드명을 기존 `K-Coach AI Business Japanese`에서 기획안 명칭인 **`Voice Tutor AI Business`**로 전면 수정 적용했습니다.
 * **깃허브 다중 브랜치 제공 및 푸시**:
-  * 로컬 소스 전량을 `49chan/voice_tutor` 원격지에 안전하게 커밋 완료했습니다.
+  * 로컬 소스 전량을 `49chan/VoiceTutorV2` 원격지에 안전하게 커밋 완료했습니다.
   * 원격 저장소 설정에 무관하게 즉시 코드가 표출될 수 있도록 **`main` 브랜치와 `master` 브랜치 양쪽 모두에 완전 동기화 강제 푸시** 작업을 마쳤습니다.
 
 ---
