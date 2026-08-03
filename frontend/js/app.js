@@ -1125,7 +1125,14 @@ async function submitAssessment() {
                                 textbook: activeFilename,
                                 testcount: nextTestCount,
                                 score: Math.round(evalResult.overall_score),
-                                feedback: evalResult.summary_feedback
+                                feedback: evalResult.summary_feedback,
+                                audio_filename: evalResult.audio_filename,
+                                raw_text: evalResult.raw_text,
+                                overall_score: evalResult.overall_score,
+                                accuracy_score: evalResult.accuracy_score,
+                                fluency_score: evalResult.fluency_score,
+                                completeness_score: evalResult.completeness_score,
+                                evaluation_json: evalResult
                             }]);
 
                         if (insertError) throw insertError;
