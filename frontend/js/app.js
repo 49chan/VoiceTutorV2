@@ -191,7 +191,7 @@ function exitPracticeRoom() {
     document.getElementById("screen-landing").classList.remove("hidden");
 }
 
-function toggleDrawer(drawerId, show) {
+async function toggleDrawer(drawerId, show) {
     const overlay = document.getElementById(`drawer-${drawerId}`);
     if (!overlay) return;
     
@@ -208,7 +208,7 @@ function toggleDrawer(drawerId, show) {
             const testStatusText = document.getElementById("mic-test-status").textContent;
             
             if (micToggle.checked && testStatusText !== "정상 (목소리 감지됨)") {
-                alert("⚠️ 마이크 테스트가 '정상' 상태가 아닙니다!\n마이크 장치 연결 상태나 입력 볼륨을 확인해 주세요.");
+                await showAlert("마이크 테스트가 '정상' 상태가 아닙니다!\n마이크 장치 연결 상태나 입력 볼륨을 확인해 주세요.", "warning");
             }
             
             micToggle.checked = false;
@@ -331,17 +331,17 @@ async function saveAppSettings() {
         });
         
         if (response.ok) {
-            alert("설정이 성공적으로 저장되었습니다!");
+            await showAlert("설정이 성공적으로 저장되었습니다!", "info");
             updateStatusDots();
-            toggleDrawer('settings', false);
+            await toggleDrawer('settings', false);
             loadAppSettings();
         } else {
             const errText = await response.text();
-            alert(`❌ 설정 저장 실패 (서버 오류):\n${errText}`);
+            await showAlert(`설정 저장 실패 (서버 오류):\n${errText}`, "danger");
         }
     } catch (err) {
         console.error("Save settings error:", err);
-        alert(`❌ 서버 연결 실패\n\n지정한 API 주소(${BACKEND_URL})에 백엔드가 구동 중인지, 또는 PC의 로컬 서버가 켜져 있는지 확인해 주세요.`);
+        await showAlert(`서버 연결 실패\n\n지정한 API 주소(${BACKEND_URL})에 백엔드가 구동 중인지, 또는 PC의 로컬 서버가 켜져 있는지 확인해 주세요.`, "danger");
     }
 }
 
@@ -373,7 +373,7 @@ function forceViewMode() {
     if (saveBtn) saveBtn.classList.add("hidden");
 }
 
-function handleFileImport(input) {
+async function handleFileImport(input) {
     if (!input.files || !input.files[0]) return;
     
     const file = input.files[0];
@@ -381,17 +381,17 @@ function handleFileImport(input) {
     activeFilename = file.name;
     
     // Close Drawer
-    toggleDrawer('file-upload', false);
+    await toggleDrawer('file-upload', false);
     
     if (extension === "pdf") {
         uploadedPdfFile = file;
         document.getElementById("label-pdf-active").textContent = file.name;
         // Open PDF Page selector
-        toggleDrawer('extract-pdf', true);
+        await toggleDrawer('extract-pdf', true);
     } else if (extension === "txt") {
         // Read text locally using FileReader API
         const reader = new FileReader();
-        reader.onload = (e) => {
+        reader.onload = async (e) => {
             const rawText = e.target.result;
             // Set text values
             document.getElementById("raw-text-editor").value = rawText;
@@ -433,13 +433,13 @@ function handleFileImport(input) {
                 btnEdit.classList.remove("disabled");
             }
             
-            alert(`교재 텍스트 파일 (.txt) 로드 완료!\n녹음 버튼을 눌러 연습을 시작해 주세요.`);
+            await showAlert(`교재 텍스트 파일 (.txt) 로드 완료!\n녹음 버튼을 눌러 연습을 시작해 주세요.`, "info");
         };
         reader.readAsText(file, "utf-8");
     } else if (extension === "txt") {
         // Read text locally using FileReader API
         const reader = new FileReader();
-        reader.onload = (e) => {
+        reader.onload = async (e) => {
             const rawText = e.target.result;
             // Set text values
             document.getElementById("raw-text-editor").value = rawText;
@@ -481,11 +481,11 @@ function handleFileImport(input) {
                 btnEdit.classList.remove("disabled");
             }
             
-            alert(`교재 텍스트 파일 (.txt) 로드 완료!\n녹음 버튼을 눌러 연습을 시작해 주세요.`);
+            await showAlert(`교재 텍스트 파일 (.txt) 로드 완료!\n녹음 버튼을 눌러 연습을 시작해 주세요.`, "info");
         };
         reader.readAsText(file, "utf-8");
     } else {
-        alert("지원하지 않는 파일 형식입니다. .txt, .pdf 파일만 가능합니다.");
+        await showAlert("지원하지 않는 파일 형식입니다. .txt, .pdf 파일만 가능합니다.", "warning");
     }
     
     // Clear input
@@ -658,7 +658,7 @@ function restoreEvaluationFromData(data) {
 // -----------------
 async function runPdfPageExtraction() {
     if (!uploadedPdfFile) {
-        alert("먼저 PDF 파일을 업로드하세요!");
+        await showAlert("먼저 PDF 파일을 업로드하세요!", "warning");
         return;
     }
     
@@ -717,8 +717,8 @@ async function runPdfPageExtraction() {
                 btnEdit.classList.remove("disabled");
             }
             
-            toggleDrawer('extract-pdf', false);
-            alert(`PDF p.${pageNum} 문자 추출이 정상 완료되었습니다!\n텍스트에 오류가 있다면 수정하실 수 있습니다.`);
+            await toggleDrawer('extract-pdf', false);
+            await showAlert(`PDF p.${pageNum} 문자 추출이 정상 완료되었습니다!\n텍스트에 오류가 있다면 수정하실 수 있습니다.`, "info");
         } else {
             let errorMsg = "알 수 없는 오류";
             try {
@@ -734,11 +734,11 @@ async function runPdfPageExtraction() {
                     errorMsg = `HTTP 상태 코드: ${response.status} ${response.statusText}`;
                 }
             }
-            alert(`❌ 문자 추출 실패: ${errorMsg}`);
+            await showAlert(`문자 추출 실패: ${errorMsg}`, "danger");
         }
     } catch (err) {
         console.error("PDF page extraction exception:", err);
-        alert(`❌ 클라이언트 오류 발생:\n${err.message || err}\n\n(상세 내용: ${err.stack ? err.stack.split('\n')[0] : ''})`);
+        await showAlert(`클라이언트 오류 발생:\n${err.message || err}\n\n(상세 내용: ${err.stack ? err.stack.split('\n')[0] : ''})`, "danger");
     } finally {
         btn.innerHTML = "페이지 문자 추출 <i class='fa-solid fa-wand-magic'></i>";
         btn.disabled = false;
@@ -787,7 +787,7 @@ function toggleTextEditMode() {
 async function saveEditedText(silent = false) {
     const rawText = document.getElementById("raw-text-editor").value.trim();
     if (!rawText) {
-        if (!silent) alert("저장할 텍스트 내용이 없습니다.");
+        if (!silent) await showAlert("저장할 텍스트 내용이 없습니다.", "warning");
         return;
     }
     
@@ -803,7 +803,7 @@ async function saveEditedText(silent = false) {
         }
         userFilename = userFilename.trim();
         if (!userFilename) {
-            alert("올바른 파일명을 입력해 주세요.");
+            await showAlert("올바른 파일명을 입력해 주세요.", "warning");
             return;
         }
         if (!userFilename.toLowerCase().endsWith(".txt")) {
@@ -832,11 +832,11 @@ async function saveEditedText(silent = false) {
             document.getElementById("label-active-filename").textContent = activeFilename;
             console.log(`텍스트 저장 완료: ${res.file_name}`);
         } else {
-            if (!silent) alert("텍스트 파일 저장에 실패했습니다.");
+            if (!silent) await showAlert("텍스트 파일 저장에 실패했습니다.", "danger");
         }
     } catch (err) {
         console.error("Save edited text network error:", err);
-        if (!silent) alert("서버 연결 실패");
+        if (!silent) await showAlert("서버 연결 실패", "danger");
     }
 }
 
@@ -846,7 +846,7 @@ async function saveEditedText(silent = false) {
 async function startMobileRecording() {
     // 파일명 저장 여부 체크 (새텍스트.txt가 없거나 빈값인 경우 녹음 불가)
     if (!activeFilename || activeFilename === "새텍스트.txt" || activeFilename.trim() === "") {
-        alert("⚠️ [파일저장 누락]\n녹음을 시작하기 전에 먼저 본문 텍스트를 저장하여 파일명을 지정해 주세요.");
+        await showAlert("[파일저장 누락]\n녹음을 시작하기 전에 먼저 본문 텍스트를 저장하여 파일명을 지정해 주세요.", "warning");
         return;
     }
 
@@ -906,11 +906,11 @@ async function startMobileRecording() {
         timerLabel.textContent = `1:30`;
         
         // Set 30-second silence detector timeout
-        voiceCheckTimeout = setTimeout(() => {
+        voiceCheckTimeout = setTimeout(async () => {
             if (!voiceDetected && recorder.isRecording) {
                 console.warn("No voice detected within 30 seconds. Cutting off automatically...");
                 stopMobileRecording();
-                alert("⚠️ 30초 동안 음성이 감지되지 않아 녹음이 자동 중지되었습니다.\n마이크 연결 상태나 마이크 볼륨 크기를 확인해 주세요.");
+                await showAlert("30초 동안 음성이 감지되지 않아 녹음이 자동 중지되었습니다.\n마이크 연결 상태나 마이크 볼륨 크기를 확인해 주세요.", "warning");
             }
         }, 30000);
         
@@ -932,7 +932,7 @@ async function startMobileRecording() {
         
     } catch (err) {
         console.error("Recording start error:", err);
-        alert("설정에서 마이크 사용여부를 확인하세요.");
+        await showAlert("설정에서 마이크 사용여부를 확인하세요.", "warning");
         btnRecord.disabled = false;
         btnRecord.classList.remove("disabled");
     }
@@ -1017,13 +1017,13 @@ async function stopMobileRecording() {
 // -----------------
 async function submitAssessment() {
     if (!recordedWavBlob) {
-        alert("평가할 녹음 데이터가 없습니다. 먼저 녹음을 진행하세요!");
+        await showAlert("평가할 녹음 데이터가 없습니다. 먼저 녹음을 진행하세요!", "warning");
         return;
     }
     
     // Warn if API keys are missing on submit
     if (!settings.has_azure_speech) {
-        const confirmMock = confirm("⚠️ Azure Speech API 구독 설정이 비어 있습니다. 시뮬레이터 모드로 발음 평가를 진행하시겠습니까?");
+        const confirmMock = await showConfirm("Azure Speech API 구독 설정이 비어 있습니다. 시뮬레이터 모드로 발음 평가를 진행하시겠습니까?", "warning");
         if (!confirmMock) return;
     }
     
@@ -1034,7 +1034,7 @@ async function submitAssessment() {
     
     const rawText = document.getElementById("raw-text-editor").value.trim();
     if (!rawText) {
-        alert("평가할 낭독 문장이 없습니다. 텍스트를 준비하세요.");
+        await showAlert("평가할 낭독 문장이 없습니다. 텍스트를 준비하세요.", "warning");
         return;
     }
     
@@ -1146,15 +1146,15 @@ async function submitAssessment() {
             }
         } else {
             const err = await response.json();
-            alert(`평가 오류: ${err.detail || "서버 통신 오류"}`);
+            await showAlert(`평가 오류: ${err.detail || "서버 통신 오류"}`, "danger");
         }
     } catch (err) {
         clearTimeout(timeoutId);
         if (err.name === "AbortError" || isTimeout) {
-            alert("평가 시간 초과: 9초 동안 서버로부터 응답이 없어 평가를 강제 중단합니다.");
+            await showAlert("평가 시간 초과: 9초 동안 서버로부터 응답이 없어 평가를 강제 중단합니다.", "danger");
         } else {
             console.error("Evaluation exception:", err);
-            alert("서버 통신 실패");
+            await showAlert("서버 통신 실패", "danger");
         }
     } finally {
         const btnEval = document.getElementById("btn-func-evaluate");
@@ -1201,12 +1201,12 @@ function playWordSegment(offsetTicks, durationTicks) {
     player.play().catch(e => console.error(e));
 }
 
-function toggleGlobalAudio() {
+async function toggleGlobalAudio() {
     const player = document.getElementById("evaluation-audio-player");
     const icon = document.getElementById("icon-playback-state");
     
     if (!player.src || player.src.includes("null")) {
-        alert("재생할 녹음 오디오가 없습니다.");
+        await showAlert("재생할 녹음 오디오가 없습니다.", "warning");
         return;
     }
     
@@ -1346,11 +1346,11 @@ function stopMicTest() {
 // -----------------
 // Google Email Login & Security Helpers
 // -----------------
-function handleStartAppButtonClick() {
+async function handleStartAppButtonClick() {
     const isSessionLoggedIn = sessionStorage.getItem("isLoggedIn") === "true";
     if (!isLoggedIn && !isSessionLoggedIn) {
-        alert("⚠️ 서비스 보안 정책에 따라 먼저 등록된 구글 계정으로 로그인해 주셔야 입장이 가능합니다!");
-        toggleDrawer('login', true);
+        await showAlert("서비스 보안 정책에 따라 먼저 등록된 구글 계정으로 로그인해 주셔야 입장이 가능합니다!", "warning");
+        await toggleDrawer('login', true);
         return;
     }
     enterPracticeRoom();
@@ -1373,17 +1373,16 @@ async function logoutGoogleUser() {
     sessionStorage.removeItem("userAvatar");
     
     updateLoginUI();
-    alert("로그아웃 되었습니다.");
+    await showAlert("로그아웃 되었습니다.", "info");
 }
 
 function initGoogleSignIn() {
     // Supabase Google OAuth를 사용하므로 기존 Google GIS SDK 초기화는 건너뜁니다.
     console.log("Using Supabase Google OAuth instead of legacy GIS.");
 }
-
 async function loginWithGoogle() {
     if (!supabaseClient) {
-        alert("Supabase 클라이언트가 초기화되지 않았습니다. 잠시 후 다시 시도해 주세요.");
+        await showAlert("Supabase 클라이언트가 초기화되지 않았습니다. 잠시 후 다시 시도해 주세요.", "warning");
         return;
     }
     
@@ -1399,7 +1398,7 @@ async function loginWithGoogle() {
     
     if (error) {
         console.error("Supabase OAuth error:", error);
-        alert("Google 로그인 과정에서 오류가 발생했습니다: " + error.message);
+        await showAlert("Google 로그인 과정에서 오류가 발생했습니다: " + error.message, "danger");
     }
 }
 
@@ -1420,7 +1419,7 @@ function applyScreenTheme(theme) {
 // -----------------
 async function showResultHistory() {
     if (!supabaseClient) {
-        alert("Supabase 클라이언트가 초기화되지 않았습니다. 잠시 후 다시 시도해 주세요.");
+        await showAlert("Supabase 클라이언트가 초기화되지 않았습니다. 잠시 후 다시 시도해 주세요.", "warning");
         return;
     }
 
@@ -1690,7 +1689,7 @@ async function loadDbEvaluationDetail(item) {
                 btnEdit.classList.remove("disabled");
             }
             
-            alert(`교재 텍스트 [${item.file_name}] 복원 완료!\n녹음 버튼을 눌러 연습을 시작해 주세요.`);
+            await showAlert(`교재 텍스트 [${item.file_name}] 복원 완료!\n녹음 버튼을 눌러 연습을 시작해 주세요.`, "info");
             return;
         }
         
@@ -1718,8 +1717,98 @@ async function loadDbEvaluationDetail(item) {
         }
     } catch (err) {
         console.error("Failed to load evaluation detail:", err);
-        alert("평가 이력 상세 데이터를 복원하지 못했습니다.");
+        await showAlert("평가 이력 상세 데이터를 복원하지 못했습니다.", "danger");
     }
+}
+
+// ==========================================
+// CUSTOM POPUP MODAL IMPLEMENTATION
+// ==========================================
+function showCustomPopup({ title, message, type = 'info', confirmText = '확인', cancelText = '취소', showCancel = false }) {
+    return new Promise((resolve) => {
+        const modal = document.getElementById('custom-popup-modal');
+        const modalContent = modal.querySelector('.custom-modal-content');
+        const titleText = document.getElementById('modal-title-text');
+        const messageText = document.getElementById('modal-message-text');
+        const iconSymbol = document.getElementById('modal-icon-symbol');
+        const confirmBtn = document.getElementById('modal-btn-confirm');
+        const cancelBtn = document.getElementById('modal-btn-cancel');
+
+        // Reset theme classes on modal content
+        modalContent.className = 'custom-modal-content ' + type;
+
+        // Apply title & message
+        titleText.textContent = title;
+        // Support newlines in messages
+        messageText.innerHTML = message.replace(/\n/g, '<br>');
+
+        // Set type specific elements
+        if (type === 'warning') {
+            iconSymbol.textContent = 'warning';
+        } else if (type === 'danger') {
+            iconSymbol.textContent = '!';
+        } else {
+            iconSymbol.textContent = 'i';
+        }
+
+        // Set buttons text & visibility
+        confirmBtn.className = 'modal-btn btn-confirm';
+        if (type === 'warning') {
+            confirmBtn.textContent = confirmText;
+        } else if (type === 'danger') {
+            confirmBtn.textContent = confirmText;
+        } else {
+            confirmBtn.textContent = confirmText;
+        }
+        
+        if (showCancel) {
+            cancelBtn.textContent = cancelText;
+            cancelBtn.classList.remove('hidden');
+        } else {
+            cancelBtn.classList.add('hidden');
+        }
+
+        // Set up event listeners
+        confirmBtn.onclick = () => {
+            modal.classList.add('hidden');
+            resolve(true);
+        };
+
+        cancelBtn.onclick = () => {
+            modal.classList.add('hidden');
+            resolve(false);
+        };
+
+        // Show the modal
+        modal.classList.remove('hidden');
+    });
+}
+
+// Global alert/confirm replacements
+async function showAlert(message, type = 'info') {
+    let title = '안내드립니다';
+    if (type === 'warning') title = '잠깐만요!';
+    if (type === 'danger') title = '문제가 발생했습니다';
+    
+    await showCustomPopup({
+        title: title,
+        message: message,
+        type: type,
+        confirmText: type === 'danger' ? '다시 시도' : '확인',
+        showCancel: false
+    });
+}
+
+async function showConfirm(message, type = 'warning') {
+    let title = '잠깐만요!';
+    return await showCustomPopup({
+        title: title,
+        message: message,
+        type: type,
+        confirmText: '계속하기',
+        cancelText: '취소',
+        showCancel: true
+    });
 }
 
 
