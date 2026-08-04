@@ -68,10 +68,9 @@
                 </div>
 
                 <div class="landing-disclaimer" style="margin-top: 15px; font-size: 0.78rem; line-height: 1.45; color: var(--text-muted); background: rgba(120, 120, 120, 0.03); padding: 12px; border-radius: 8px; border: 1px solid var(--border-light); text-align: left; max-width: 345px; margin-left: auto; margin-right: auto; box-sizing: border-box;">
-                    <strong style="color: var(--color-primary); display: flex; align-items: center; gap: 5px; margin-bottom: 5px; font-size: 0.82rem;">
-                        <i class="fa-solid fa-circle-info"></i> 테스트 버전 작동 안내
+                    <strong style="color: var(--color-primary); display: flex; align-items: center; gap: 5px; font-size: 0.82rem;">
+                        <i class="fa-solid fa-circle-info"></i> 테스트 버전 작동중
                     </strong>
-                    <span style="display: block; padding-left: 20px; padding-right: 20px;">현재 녹음(.mp3)파일은 저장되지 않습니다.<br>(추후 재생가능하도록 반영예정)</span>
                 </div>
 
                 <div class="landing-action-zone">
@@ -94,8 +93,8 @@
             <!-- Top Function Header -->
             <header class="practice-header">
                 <div class="header-action-row">
-                    <button class="btn btn-nav-func" id="btn-func-text-input" onclick="enterTextInputMode()"><i class="fa-solid fa-keyboard"></i> 텍스트입력</button>
-                    <button class="btn btn-nav-func" id="btn-func-open-file" onclick="toggleDrawer('file-upload', true)"><i class="fa-solid fa-folder-open"></i> 파일열기</button>
+                    <button class="btn btn-nav-func" id="btn-func-text-input" onclick="enterTextInputMode()"><i class="fa-solid fa-keyboard"></i> 입력</button>
+                    <button class="btn btn-nav-func" id="btn-func-open-file" onclick="toggleDrawer('file-upload', true)"><i class="fa-solid fa-folder-open"></i> 열기</button>
                     <button class="btn btn-nav-func" id="btn-func-extract" onclick="toggleDrawer('extract-pdf', true)" style="display: none;"><i class="fa-solid fa-file-export"></i> 변환</button>
                     <button class="btn btn-nav-func" id="btn-func-record" onclick="startMobileRecording()"><i class="fa-solid fa-microphone"></i> 녹음</button>
                     <button class="btn btn-nav-func disabled" id="btn-func-stop" onclick="stopMobileRecording()" disabled><i class="fa-solid fa-stop"></i> 중지</button>
@@ -146,7 +145,7 @@
                     <!-- Highlighted Text Display (Viewer Mode) -->
                     <div class="reading-pane-body" id="text-highlight-viewer">
                         <span class="placeholder-text">
-                            [파일열기] 또는 [변환]으로 연습할 교재를 로드하거나, 우측 상단 편집 연필 아이콘을 클릭해 직접 문장을 입력해 주세요.
+                            [열기]로 연습할 교재를 로드하거나, 우측 상단 편집 연필 아이콘을 클릭해 직접 문장을 입력해 주세요.
                         </span>
                     </div>
 
@@ -324,7 +323,7 @@
                     <!-- 1. 연습파일 불러오기 -->
                     <div style="display: flex; flex-direction: column; gap: 8px;">
                         <div style="font-weight: 700; color: #a855f7; font-size: 0.9rem; border-bottom: 1px solid var(--border-light); padding-bottom: 4px; display: flex; align-items: center; gap: 6px;">
-                            <i class="fa-solid fa-graduation-cap"></i> 연습파일 불러오기
+                            <i class="fa-solid fa-graduation-cap"></i> [신규] 연습파일 불러오기
                         </div>
                         <div class="upload-dropzone" onclick="document.getElementById('file-upload-input').click()" style="padding: 10px 15px; display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 10px; border: 2px dashed var(--border-light); border-radius: 8px; cursor: pointer; text-align: center; background: rgba(255,255,255,0.01);">
                             <i class="fa-solid fa-file-arrow-up" style="font-size: 1.3rem; color: var(--color-primary);"></i>
@@ -344,7 +343,7 @@
                     <div style="display: flex; flex-direction: column; gap: 8px;">
                         <div style="font-weight: 700; color: #a855f7; font-size: 0.9rem; border-bottom: 1px solid var(--border-light); padding-bottom: 4px; display: flex; align-items: center; justify-content: space-between; gap: 6px;">
                             <div style="display: flex; align-items: center; gap: 6px;">
-                                <i class="fa-solid fa-history"></i> 평가파일 불러오기 (DB 이력)
+                                <i class="fa-solid fa-history"></i> [기존] 평가된 파일 불러오기
                             </div>
                             <label style="display: flex; align-items: center; gap: 4px; font-size: 0.72rem; font-weight: normal; color: var(--text-muted); cursor: pointer; user-select: none;">
                                 <input type="checkbox" id="db-history-only-txt-checkbox" style="width: 13px; height: 13px; accent-color: #a855f7;"> txt파일
