@@ -240,6 +240,15 @@ def api_get_supabase_config():
         "supabase_key": os.environ.get("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "")
     }
 
+@app.get("/api/debug-env")
+def api_debug_env():
+    return {
+        "azure_speech_key_len": len(os.environ.get("AZURE_SPEECH_KEY", "")),
+        "azure_speech_region_val": os.environ.get("AZURE_SPEECH_REGION", ""),
+        "has_azure_speech_env": bool(os.environ.get("AZURE_SPEECH_KEY") and os.environ.get("AZURE_SPEECH_REGION")),
+        "cached_has_azure_speech": load_settings().has_azure_speech
+    }
+
 @app.post("/api/test-azure-connection")
 async def api_test_azure_connection(req: KeyTestRequestAzure):
     """Checks the validity of Azure Speech key and region via light REST query."""
