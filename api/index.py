@@ -211,7 +211,8 @@ def api_login(req: LoginRequest):
 @app.get("/api/settings", response_model=AppSettings)
 def api_get_settings():
     """Retrieves current non-credential settings. Credentials are hidden and handled by environment variables."""
-    s = load_settings()
+    # Create a copy to prevent blanking out the cached credentials in memory
+    s = load_settings().copy()
     # Mask all credentials to blank for browser client
     s.azure_speech_key = ""
     s.azure_speech_region = ""
