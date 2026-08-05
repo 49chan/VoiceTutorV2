@@ -922,7 +922,7 @@ async function startMobileRecording() {
         voiceCheckTimeout = setTimeout(async () => {
             if (!voiceDetected && recorder.isRecording) {
                 console.warn("No voice detected within 30 seconds. Cutting off automatically...");
-                stopMobileRecording();
+                await stopMobileRecording(true);
                 await showAlert("30초 동안 음성이 감지되지 않아 녹음이 자동 중지되었습니다.\n마이크 연결 상태나 마이크 볼륨 크기를 확인해 주세요.", "warning");
             }
         }, 30000);
@@ -951,7 +951,7 @@ async function startMobileRecording() {
     }
 }
 
-async function stopMobileRecording() {
+async function stopMobileRecording(voiceFailure = false) {
     const btnRecord = document.getElementById("btn-func-record");
     const btnStop = document.getElementById("btn-func-stop");
     const btnEval = document.getElementById("btn-func-evaluate");
@@ -976,8 +976,14 @@ async function stopMobileRecording() {
         btnStop.disabled = true;
         btnStop.classList.add("disabled");
         
-        btnEval.disabled = false;
-        btnEval.classList.remove("disabled");
+        if (voiceFailure || !voiceDetected) {
+            btnEval.disabled = true;
+            btnEval.classList.add("disabled");
+            recordedWavBlob = null;
+        } else {
+            btnEval.disabled = false;
+            btnEval.classList.remove("disabled");
+        }
         
         // Update top-right indicator (Black Stop)
         const indicator = document.getElementById("recording-status-indicator");
@@ -989,32 +995,38 @@ async function stopMobileRecording() {
         if (currentAudioUrl) {
             URL.revokeObjectURL(currentAudioUrl);
         }
-        currentAudioUrl = URL.createObjectURL(recordedWavBlob);
-        document.getElementById("evaluation-audio-player").src = currentAudioUrl;
-        
-        console.log("Recorded WAV Blob size:", recordedWavBlob.size);
+        if (recordedWavBlob) {
+            currentAudioUrl = URL.createObjectURL(recordedWavBlob);
+            document.getElementById("evaluation-audio-player").src = currentAudioUrl;
+            console.log("Recorded WAV Blob size:", recordedWavBlob.size);
+        } else {
+            currentAudioUrl = null;
+            document.getElementById("evaluation-audio-player").src = "";
+        }
 
         // 중지 즉시 MP3 저장 요청 (백그라운드, 평가와 무관하게 파일 생성)
         savedRecordingInfo = null;
-        try {
-            const rawText = document.getElementById("raw-text-editor").value.trim();
-            const saveForm = new FormData();
-            saveForm.append("file_name", activeFilename);
-            saveForm.append("page_number", activePageNumber);
-            saveForm.append("audio", recordedWavBlob, "recording.wav");
+        if (recordedWavBlob) {
+            try {
+                const rawText = document.getElementById("raw-text-editor").value.trim();
+                const saveForm = new FormData();
+                saveForm.append("file_name", activeFilename);
+                saveForm.append("page_number", activePageNumber);
+                saveForm.append("audio", recordedWavBlob, "recording.wav");
 
-            const saveRes = await fetch(`${BACKEND_URL}/api/save-recording`, {
-                method: "POST",
-                body: saveForm
-            });
-            if (saveRes.ok) {
-                savedRecordingInfo = await saveRes.json();
-                console.log("녹음 파일 저장 완료:", savedRecordingInfo);
-            } else {
-                console.warn("녹음 파일 저장 실패 (평가 시 재변환됩니다).");
+                const saveRes = await fetch(`${BACKEND_URL}/api/save-recording`, {
+                    method: "POST",
+                    body: saveForm
+                });
+                if (saveRes.ok) {
+                    savedRecordingInfo = await saveRes.json();
+                    console.log("녹음 파일 저장 완료:", savedRecordingInfo);
+                } else {
+                    console.warn("녹음 파일 저장 실패 (평가 시 재변환됩니다).");
+                }
+            } catch (saveErr) {
+                console.warn("녹음 저장 요청 에러:", saveErr);
             }
-        } catch (saveErr) {
-            console.warn("녹음 저장 요청 에러:", saveErr);
         }
     } catch (err) {
         console.error("Recording stop error:", err);
@@ -1029,6 +1041,10 @@ async function stopMobileRecording() {
 // Evaluation Submit
 // -----------------
 async function submitAssessment() {
+    if (!voiceDetected) {
+        await showAlert("감지된 음성이 없습니다. 마이크 연결을 확인하시고 다시 녹음해 주세요!", "warning");
+        return;
+    }
     if (!recordedWavBlob) {
         await showAlert("평가할 녹음 데이터가 없습니다. 먼저 녹음을 진행하세요!", "warning");
         return;
