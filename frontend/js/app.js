@@ -395,7 +395,7 @@ async function handleFileImport(input) {
             const rawText = e.target.result;
             // Set text values
             document.getElementById("raw-text-editor").value = rawText;
-            document.getElementById("label-active-filename").textContent = file.name;
+            document.getElementById("label-active-filename").textContent = getDisplayFilename(file.name);
             
             // Clean view highlights card and reset score displays (txt is new practice)
             resetEvaluationDisplay();
@@ -443,7 +443,7 @@ async function handleFileImport(input) {
             const rawText = e.target.result;
             // Set text values
             document.getElementById("raw-text-editor").value = rawText;
-            document.getElementById("label-active-filename").textContent = file.name;
+            document.getElementById("label-active-filename").textContent = getDisplayFilename(file.name);
             
             // Clean view highlights card and reset score displays (txt is new practice)
             resetEvaluationDisplay();
@@ -579,7 +579,7 @@ function resetEvaluationDisplay(keepAudio = false) {
 function restoreEvaluationFromData(data) {
     // 1. Filename overlays
     activeFilename = data.file_name || "복원된이력.json";
-    document.getElementById("label-active-filename").textContent = activeFilename;
+    document.getElementById("label-active-filename").textContent = getDisplayFilename(activeFilename);
     document.getElementById("raw-text-editor").value = data.raw_text || "";
     
     // 2. Score details display
@@ -689,7 +689,7 @@ async function runPdfPageExtraction() {
             document.getElementById("raw-text-editor").value = res.raw_text;
             const baseName = uploadedPdfFile.name.replace(/\.pdf$/i, "");
             activeFilename = `${baseName}_p${pageNum}.txt`;
-            document.getElementById("label-active-filename").textContent = activeFilename;
+            document.getElementById("label-active-filename").textContent = getDisplayFilename(activeFilename);
             
             resetEvaluationDisplay();
             forceViewMode();
@@ -816,7 +816,7 @@ async function saveEditedText(silent = false) {
         }
         filenameToSave = userFilename;
         activeFilename = filenameToSave;
-        document.getElementById("label-active-filename").textContent = activeFilename;
+        document.getElementById("label-active-filename").textContent = getDisplayFilename(activeFilename);
     }
     
     try {
@@ -834,7 +834,7 @@ async function saveEditedText(silent = false) {
         if (response.ok) {
             const res = await response.json();
             activeFilename = res.file_name;
-            document.getElementById("label-active-filename").textContent = activeFilename;
+            document.getElementById("label-active-filename").textContent = getDisplayFilename(activeFilename);
             console.log(`텍스트 저장 완료: ${res.file_name}`);
         } else {
             if (!silent) await showAlert("텍스트 파일 저장에 실패했습니다.", "danger");
@@ -1509,7 +1509,7 @@ async function showResultHistory() {
             card.innerHTML = `
                 <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 6px; margin-bottom: 6px;">
                     <div style="display: flex; flex-direction: column; gap: 2px;">
-                        <span style="font-weight: 700; font-size: 0.95rem; color: var(--text-main); word-break: break-all;">${item.textbook || '미지정교재'}</span>
+                        <span style="font-weight: 700; font-size: 0.95rem; color: var(--text-main); word-break: break-all;">${getDisplayFilename(item.textbook || '미지정교재')}</span>
                         <div style="display: flex; gap: 6px; align-items: center; font-size: 0.72rem; color: var(--text-muted);">
                             <span>${item.testcount ? item.testcount + '회차' : '1회차'}</span>
                             <span style="opacity: 0.4;">|</span>
@@ -1631,7 +1631,7 @@ async function loadDbHistory() {
             
             itemDiv.innerHTML = `
                 <div style="display: flex; flex-direction: column; gap: 2px; text-align: left; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; max-width: 75%;">
-                    <strong style="font-size: 0.85rem; color: var(--text-main); text-overflow: ellipsis; overflow: hidden;">${item.file_name}</strong>
+                    <strong style="font-size: 0.85rem; color: var(--text-main); text-overflow: ellipsis; overflow: hidden;">${getDisplayFilename(item.file_name)}</strong>
                     <span style="font-size: 0.7rem; color: var(--text-muted);">버전 ${item.version} | ${item.created_at}</span>
                 </div>
                 <span style="font-weight: 700; font-size: 0.9rem; color: ${scoreColor};">${item.overall_score}점</span>
@@ -1673,7 +1673,7 @@ async function loadDbEvaluationDetail(item) {
             const rawText = evalData.raw_text || "";
             document.getElementById("raw-text-editor").value = rawText;
             activeFilename = item.file_name.endsWith(".txt") ? item.file_name : `${item.file_name}.txt`;
-            document.getElementById("label-active-filename").textContent = activeFilename;
+            document.getElementById("label-active-filename").textContent = getDisplayFilename(activeFilename);
             
             resetEvaluationDisplay();
             forceViewMode();
@@ -1951,8 +1951,9 @@ async function toggleLocalAudioPlayback() {
         }
     }
 }
-
-
-
-
-
+// 파일명에서 확장자를 제외하고 보여주는 출력용 헬퍼 함수
+function getDisplayFilename(filename) {
+    if (!filename) return "교재 없음";
+    if (filename === "교재 없음 (저장 필요)") return filename;
+    return filename.replace(/\.[^/.]+$/, "");
+}
