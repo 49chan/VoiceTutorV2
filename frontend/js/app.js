@@ -63,6 +63,35 @@ async function initSupabase() {
             if (config.supabase_url && config.supabase_key) {
                 supabaseClient = supabase.createClient(config.supabase_url, config.supabase_key);
                 console.log("Supabase Client initialized successfully.");
+                
+                // Supabase 자체 인증 상태 변경 감지 및 동기화
+                supabaseClient.auth.onAuthStateChange((event, session) => {
+                    console.log("[Supabase Auth Event]:", event);
+                    if (session && session.user) {
+                        const meta = session.user.user_metadata || {};
+                        sessionStorage.setItem("isLoggedIn", "true");
+                        sessionStorage.setItem("userEmail", session.user.email);
+                        sessionStorage.setItem("userName", meta.full_name || meta.name || session.user.email.split('@')[0]);
+                        sessionStorage.setItem("userAvatar", meta.avatar_url || "");
+                    } else {
+                        sessionStorage.removeItem("isLoggedIn");
+                        sessionStorage.removeItem("userEmail");
+                        sessionStorage.removeItem("userName");
+                        sessionStorage.removeItem("userAvatar");
+                    }
+                    updateLoginUI();
+                });
+
+                // 초기 세션 검사 실행 및 sessionStorage 동기화
+                const { data: { session } } = await supabaseClient.auth.getSession();
+                if (session && session.user) {
+                    const meta = session.user.user_metadata || {};
+                    sessionStorage.setItem("isLoggedIn", "true");
+                    sessionStorage.setItem("userEmail", session.user.email);
+                    sessionStorage.setItem("userName", meta.full_name || meta.name || session.user.email.split('@')[0]);
+                    sessionStorage.setItem("userAvatar", meta.avatar_url || "");
+                    updateLoginUI();
+                }
             } else {
                 console.warn("Supabase configuration keys are empty.");
             }
