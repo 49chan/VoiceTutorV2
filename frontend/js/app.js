@@ -1508,11 +1508,23 @@ async function showResultHistory() {
             return;
         }
 
-        const { data, error } = await supabaseClient
+        const sortFilter = document.getElementById("history-sort-filter");
+        const sortBy = sortFilter ? sortFilter.value : "recent";
+        
+        let query = supabaseClient
             .from('user_records')
             .select('textbook, testcount, score, created_at, feedback')
-            .eq('user_id', userId)
-            .order('created_at', { ascending: false });
+            .eq('user_id', userId);
+            
+        if (sortBy === "score_desc") {
+            query = query.order('score', { ascending: false }).order('created_at', { ascending: false });
+        } else if (sortBy === "score_asc") {
+            query = query.order('score', { ascending: true }).order('created_at', { ascending: false });
+        } else {
+            query = query.order('created_at', { ascending: false });
+        }
+
+        const { data, error } = await query;
 
         if (error) throw error;
 

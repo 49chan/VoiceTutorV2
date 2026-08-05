@@ -450,6 +450,15 @@
                     <button class="btn-close-drawer" onclick="toggleDrawer('history', false)">&times;</button>
                 </header>
                 <div class="drawer-body" style="overflow-y: auto; padding-bottom: 20px;">
+                    <!-- 조회조건 정렬 필터 -->
+                    <div class="form-group" style="margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                        <label for="history-sort-filter" style="font-size: 0.8rem; font-weight: 700; color: var(--text-muted); white-space: nowrap;">조회조건</label>
+                        <select id="history-sort-filter" onchange="showResultHistory()" style="background-color: var(--bg-secondary); border: 1px solid var(--border-light); color: var(--text-main); font-size: 0.82rem; border-radius: 6px; padding: 4px 8px; outline: none; cursor: pointer; max-width: 150px;">
+                            <option value="recent">최근일자순</option>
+                            <option value="score_desc">높은점수순</option>
+                            <option value="score_asc">낮은점수순</option>
+                        </select>
+                    </div>
                     <div id="history-container" style="max-height: 380px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; padding-right: 4px;">
                         <!-- dynamic history items will be loaded here -->
                     </div>
