@@ -389,9 +389,6 @@ body {
     font-weight: 600;
     color: var(--color-primary);
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 70%;
 }
 
 .edit-toolbar {
