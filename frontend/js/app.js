@@ -534,6 +534,11 @@ function resetEvaluationDisplay(keepAudio = false) {
     document.getElementById("stat-overall-score").style.webkitBackgroundClip = "";
     document.getElementById("stat-summary-feedback").textContent = "평가를 진행하시면 이곳에 오발음 분석 리포트가 표시됩니다.";
     
+    const playBtn = document.getElementById("btn-play-local-audio");
+    if (playBtn) {
+        playBtn.classList.add("hidden");
+    }
+    
     if (!keepAudio) {
         const player = document.getElementById("evaluation-audio-player");
         player.src = "";
@@ -1137,6 +1142,11 @@ async function submitAssessment() {
 
                         if (insertError) throw insertError;
                         console.log(`Supabase user_records 적재 성공! (textbook: ${activeFilename}, testcount: ${nextTestCount})`);
+                        
+                        // Save recorded audio to local IndexedDB
+                        if (recordedWavBlob) {
+                            await saveAudioBlobLocal(userId, activeFilename, nextTestCount, recordedWavBlob);
+                        }
                     } else {
                         console.warn("Supabase user_id를 찾을 수 없습니다. 로그인 상태를 확인하세요.");
                     }
@@ -1223,6 +1233,7 @@ async function toggleGlobalAudio() {
 function initAudioPlayerEvents() {
     const player = document.getElementById("evaluation-audio-player");
     const icon = document.getElementById("icon-playback-state");
+    const localIcon = document.getElementById("icon-local-audio-play");
     
     // timeupdate monitor
     player.addEventListener("timeupdate", () => {
@@ -1230,21 +1241,25 @@ function initAudioPlayerEvents() {
             player.pause();
             wordPlaybackStopTime = null;
             if (icon) icon.className = "fa-solid fa-circle-play";
+            if (localIcon) localIcon.className = "fa-solid fa-volume-high";
         }
     });
 
     player.addEventListener("play", () => {
         if (wordPlaybackStopTime === null) {
             if (icon) icon.className = "fa-solid fa-circle-pause";
+            if (localIcon) localIcon.className = "fa-solid fa-circle-pause";
         }
     });
 
     player.addEventListener("pause", () => {
         if (icon) icon.className = "fa-solid fa-circle-play";
+        if (localIcon) localIcon.className = "fa-solid fa-volume-high";
     });
 
     player.addEventListener("ended", () => {
         if (icon) icon.className = "fa-solid fa-circle-play";
+        if (localIcon) localIcon.className = "fa-solid fa-volume-high";
         wordPlaybackStopTime = null;
     });
     
@@ -1253,7 +1268,8 @@ function initAudioPlayerEvents() {
         if (wordPlaybackStopTime !== null && player.currentTime >= wordPlaybackStopTime) {
             player.pause();
             wordPlaybackStopTime = null;
-            icon.className = "fa-solid fa-circle-play";
+            if (icon) icon.className = "fa-solid fa-circle-play";
+            if (localIcon) localIcon.className = "fa-solid fa-volume-high";
         }
         requestAnimationFrame(checkAudioPlaybackEnd);
     }
@@ -1696,6 +1712,34 @@ async function loadDbEvaluationDetail(item) {
         forceViewMode();
         restoreEvaluationFromData(evalData);
         
+        // Check and load local audio from IndexedDB
+        if (supabaseClient) {
+            try {
+                const sessionRes = await supabaseClient.auth.getSession();
+                const session = sessionRes.data?.session;
+                const userId = session?.user?.id;
+                if (userId) {
+                    const localAudioBlob = await getAudioBlobLocal(userId, item.file_name, item.version);
+                    const playBtn = document.getElementById("btn-play-local-audio");
+                    if (localAudioBlob) {
+                        const localUrl = URL.createObjectURL(localAudioBlob);
+                        document.getElementById("evaluation-audio-player").src = localUrl;
+                        if (playBtn) {
+                            playBtn.classList.remove("hidden");
+                        }
+                        console.log(`[Local Audio] 로컬 오디오 복원 완료: ${userId}_${item.file_name}_${item.version}`);
+                    } else {
+                        if (playBtn) {
+                            playBtn.classList.add("hidden");
+                        }
+                        console.log(`[Local Audio] 로컬 오디오 파일이 존재하지 않습니다.`);
+                    }
+                }
+            } catch (localAudioErr) {
+                console.error("로컬 오디오 조회 중 오류 발생:", localAudioErr);
+            }
+        }
+        
         // Disable practice buttons as on static history logs
         const btnExtract = document.getElementById("btn-func-extract");
         const btnRecord = document.getElementById("btn-func-record");
@@ -1809,6 +1853,103 @@ async function showConfirm(message, type = 'warning') {
         cancelText: '취소',
         showCancel: true
     });
+}
+
+// ==========================================
+// LOCAL AUDIO STORAGE (IndexedDB) IMPLEMENTATION
+// ==========================================
+const AUDIO_DB_NAME = "VoiceTutorLocalDB";
+const AUDIO_STORE_NAME = "local_audio_store";
+const AUDIO_DB_VERSION = 1;
+
+function openAudioDB() {
+    return new Promise((resolve, reject) => {
+        const request = indexedDB.open(AUDIO_DB_NAME, AUDIO_DB_VERSION);
+        request.onupgradeneeded = (e) => {
+            const db = e.target.result;
+            if (!db.objectStoreNames.contains(AUDIO_STORE_NAME)) {
+                db.createObjectStore(AUDIO_STORE_NAME, { keyPath: "recordKey" });
+            }
+        };
+        request.onsuccess = (e) => resolve(e.target.result);
+        request.onerror = (e) => reject(e.target.error);
+    });
+}
+
+async function saveAudioBlobLocal(userId, textbook, testcount, blob) {
+    if (!userId || !textbook || !testcount || !blob) {
+        console.warn("[IndexedDB] 누락된 매개변수로 인해 로컬 저장을 스킵합니다.");
+        return;
+    }
+    try {
+        const db = await openAudioDB();
+        const transaction = db.transaction(AUDIO_STORE_NAME, "readwrite");
+        const store = transaction.objectStore(AUDIO_STORE_NAME);
+        
+        const recordKey = `${userId}_${textbook}_${testcount}`;
+        await new Promise((resolve, reject) => {
+            const request = store.put({
+                recordKey: recordKey,
+                userId: userId,
+                textbook: textbook,
+                testcount: testcount,
+                audioBlob: blob,
+                savedAt: new Date().toISOString()
+            });
+            request.onsuccess = () => resolve();
+            request.onerror = () => reject(request.error);
+        });
+        console.log(`[IndexedDB] 오디오 로컬 저장 완료: ${recordKey}`);
+    } catch (err) {
+        console.error("[IndexedDB] 오디오 로컬 저장 중 오류 발생:", err);
+    }
+}
+
+async function getAudioBlobLocal(userId, textbook, testcount) {
+    if (!userId || !textbook || !testcount) return null;
+    try {
+        const db = await openAudioDB();
+        const transaction = db.transaction(AUDIO_STORE_NAME, "readonly");
+        const store = transaction.objectStore(AUDIO_STORE_NAME);
+        
+        const recordKey = `${userId}_${textbook}_${testcount}`;
+        return await new Promise((resolve, reject) => {
+            const request = store.get(recordKey);
+            request.onsuccess = () => {
+                resolve(request.result ? request.result.audioBlob : null);
+            };
+            request.onerror = () => reject(request.error);
+        });
+    } catch (err) {
+        console.error("[IndexedDB] 오디오 로컬 조회 중 오류 발생:", err);
+        return null;
+    }
+}
+
+// 오디오 재생 토글 및 UI 업데이트
+async function toggleLocalAudioPlayback() {
+    const player = document.getElementById("evaluation-audio-player");
+    const icon = document.getElementById("icon-local-audio-play");
+    
+    if (!player.src || player.src.includes("null") || player.src === window.location.href) {
+        await showAlert("재생할 로컬 녹음 오디오가 존재하지 않습니다.", "warning");
+        return;
+    }
+    
+    if (player.paused) {
+        wordPlaybackStopTime = null; // 전체 재생 모드
+        player.play().catch(e => console.error("오디오 재생 실패:", e));
+        if (icon) {
+            icon.className = "fa-solid fa-circle-pause";
+            icon.style.color = "var(--color-primary)";
+        }
+    } else {
+        player.pause();
+        if (icon) {
+            icon.className = "fa-solid fa-volume-high";
+            icon.style.color = "var(--color-primary)";
+        }
+    }
 }
 
 
