@@ -219,7 +219,6 @@ def api_get_settings():
     s.google_vision_ocr_key = ""
     s.google_sheets_webhook_url = ""
     s.google_client_id = ""
-    s.google_drive_folder_id = ""
     s.authorized_email = ""
     return s
 
