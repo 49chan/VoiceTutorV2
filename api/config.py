@@ -34,7 +34,6 @@ class AppSettings(BaseModel):
     google_vision_ocr_key: Optional[str] = ""
     google_sheets_webhook_url: Optional[str] = ""
     google_client_id: Optional[str] = ""
-    google_drive_folder_id: Optional[str] = ""
     learning_language: str = "ja-JP"
     local_storage_path: Optional[str] = ""
     authorized_email: str = "yqhah@gmail.com"
@@ -74,7 +73,6 @@ def load_settings() -> AppSettings:
         _cached_settings.google_vision_ocr_key = os.environ.get("GOOGLE_VISION_OCR_KEY", "")
         _cached_settings.google_sheets_webhook_url = os.environ.get("GOOGLE_SHEETS_WEBHOOK_URL", "")
         _cached_settings.google_client_id = os.environ.get("GOOGLE_CLIENT_ID", "")
-        _cached_settings.google_drive_folder_id = os.environ.get("GOOGLE_DRIVE_FOLDER_ID", "")
         _cached_settings.authorized_email = os.environ.get("AUTHORIZED_EMAIL", "")
         _cached_settings.has_azure_speech = bool(_cached_settings.azure_speech_key and _cached_settings.azure_speech_region)
         _cached_settings.has_google_sheets = bool(_cached_settings.google_sheets_webhook_url)
@@ -108,7 +106,6 @@ def load_settings() -> AppSettings:
     settings.google_vision_ocr_key = os.environ.get("GOOGLE_VISION_OCR_KEY", "")
     settings.google_sheets_webhook_url = os.environ.get("GOOGLE_SHEETS_WEBHOOK_URL", "")
     settings.google_client_id = os.environ.get("GOOGLE_CLIENT_ID", "")
-    settings.google_drive_folder_id = os.environ.get("GOOGLE_DRIVE_FOLDER_ID", "")
     settings.authorized_email = os.environ.get("AUTHORIZED_EMAIL", "")
     settings.has_azure_speech = bool(settings.azure_speech_key and settings.azure_speech_region)
     settings.has_google_sheets = bool(settings.google_sheets_webhook_url)

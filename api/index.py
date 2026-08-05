@@ -123,33 +123,7 @@ def get_next_version(storage_path: str, base_name: str) -> tuple[int, str]:
 
 import sys
 
-def get_db_path() -> str:
-    """Returns the environment-specific database path for pronunciation_app.db."""
-    # 1. Android
-    if os.path.exists("/storage/emulated/0"):
-        db_dir = "/storage/emulated/0/Documents/VoiceTutor_Records"
-    # 2. iOS (Usually sandboxed in ~/Documents)
-    elif os.path.exists(os.path.expanduser("~/Documents")) and not sys.platform.startswith("win"):
-        db_dir = os.path.expanduser("~/Documents")
-    # 3. PC (Windows/Mac/Linux) or Vercel
-    else:
-        try:
-            from api.config import load_settings, get_default_storage_path
-        except ImportError:
-            try:
-                from backend.config import load_settings, get_default_storage_path
-            except ImportError:
-                from config import load_settings, get_default_storage_path
-        
-        settings = load_settings()
-        db_dir = settings.local_storage_path or get_default_storage_path()
-        
-    try:
-        os.makedirs(db_dir, exist_ok=True)
-    except Exception:
-        pass
-        
-    return os.path.abspath(os.path.join(db_dir, "pronunciation_app.db"))
+
 
 def generate_feedback(score: float, language: str) -> str:
     """Generates localized qualitative pronunciation summary feedback."""
@@ -215,50 +189,7 @@ def api_save_text(req: SaveTextRequest):
             f.write(req.text)
         logger.info(f"Edited text successfully saved to: {target_path}")
         
-        # Save to SQLite database pronunciation_app.db
-        db_path = get_db_path()
-        try:
-            import sqlite3
-            os.makedirs(os.path.dirname(db_path), exist_ok=True)
-            conn = sqlite3.connect(db_path)
-            cursor = conn.cursor()
-            # Ensure table exists (though it should already be created, we keep this safe fallback)
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS practice_sessions (
-                    file_name TEXT,
-                    version INTEGER DEFAULT 1,
-                    language TEXT,
-                    audio_filename NUMERIC,
-                    raw_text TEXT NOT NULL,
-                    normalized_text TEXT,
-                    overall_score INTEGER,
-                    accuracy_score INTEGER,
-                    fluency_score INTEGER,
-                    completeness_score INTEGER,
-                    summary_feedback TEXT,
-                    evaluation_json TEXT,
-                    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
-                    PRIMARY KEY(file_name, version)
-                )
-            """)
-            now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            lang = req.language or settings.learning_language or "ja-JP"
-            cursor.execute("""
-                INSERT INTO practice_sessions (file_name, version, language, raw_text, created_at, updated_at)
-                VALUES (?, 1, ?, ?, ?, ?)
-                ON CONFLICT(file_name, version) DO UPDATE SET
-                    language = excluded.language,
-                    raw_text = excluded.raw_text,
-                    updated_at = excluded.updated_at
-            """, (base_name, lang, req.text, now_str, now_str))
-            conn.commit()
-            conn.close()
-            logger.info(f"Successfully saved to SQLite DB (practice_sessions): {db_path}")
-        except Exception as db_err:
-            logger.error(f"Failed to save to SQLite database: {db_err}")
-        
-        # Upload to Google Drive disabled by user request
+        # SQLite / Google Drive integration removed
         pass
                 
         return {"status": "success", "file_name": target_filename}
@@ -370,40 +301,7 @@ async def api_extract_page(
         if os.path.exists(temp_pdf_path):
             os.remove(temp_pdf_path)
 
-def upload_eval_assets_to_drive(settings, payload, out_json_name, out_mp3_path, out_mp3_name):
-    """Background task to upload pronunciation report JSON and recording MP3 to Google Drive (Disabled by request)."""
-    return
-    try:
-        import json
-        try:
-            from api.google_drive import upload_file_to_drive
-        except ImportError:
-            try:
-                from google_drive import upload_file_to_drive
-            except ImportError:
-                from backend.google_drive import upload_file_to_drive
-        
-        # 1. Upload JSON report
-        json_data = json.dumps(payload, ensure_ascii=False, indent=2).encode("utf-8")
-        upload_file_to_drive(
-            file_content=json_data,
-            filename=out_json_name,
-            mime_type="application/json",
-            folder_id=settings.google_drive_folder_id
-        )
-        
-        # 2. Upload MP3 audio file
-        if os.path.exists(out_mp3_path):
-            with open(out_mp3_path, "rb") as f:
-                mp3_data = f.read()
-            upload_file_to_drive(
-                file_content=mp3_data,
-                filename=out_mp3_name,
-                mime_type="audio/mpeg",
-                folder_id=settings.google_drive_folder_id
-            )
-    except Exception as e:
-        logger.error(f"Background Google Drive asset upload failed: {e}")
+
 
 @app.post("/api/save-recording")
 async def api_save_recording(
@@ -556,97 +454,7 @@ async def api_evaluate(
         with open(out_json_path, "w", encoding="utf-8") as f:
             json.dump(payload, f, ensure_ascii=False, indent=2)
             
-        # Save evaluation to SQLite database pronunciation_app.db
-        db_path = get_db_path()
-        try:
-            import sqlite3
-            os.makedirs(os.path.dirname(db_path), exist_ok=True)
-            conn = sqlite3.connect(db_path)
-            cursor = conn.cursor()
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS practice_sessions (
-                    file_name TEXT,
-                    version INTEGER DEFAULT 1,
-                    language TEXT,
-                    audio_filename NUMERIC,
-                    raw_text TEXT NOT NULL,
-                    normalized_text TEXT,
-                    overall_score INTEGER,
-                    accuracy_score INTEGER,
-                    fluency_score INTEGER,
-                    completeness_score INTEGER,
-                    summary_feedback TEXT,
-                    evaluation_json TEXT,
-                    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
-                    PRIMARY KEY(file_name, version)
-                )
-            """)
-            evaluation_json_str = json.dumps(payload, ensure_ascii=False)
-            cursor.execute("""
-                INSERT INTO practice_sessions (
-                    file_name, version, language, audio_filename, raw_text, normalized_text,
-                    overall_score, accuracy_score, fluency_score, completeness_score,
-                    summary_feedback, evaluation_json, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ON CONFLICT(file_name, version) DO UPDATE SET
-                    language = excluded.language,
-                    audio_filename = excluded.audio_filename,
-                    raw_text = excluded.raw_text,
-                    normalized_text = excluded.normalized_text,
-                    overall_score = excluded.overall_score,
-                    accuracy_score = excluded.accuracy_score,
-                    fluency_score = excluded.fluency_score,
-                    completeness_score = excluded.completeness_score,
-                    summary_feedback = excluded.summary_feedback,
-                    evaluation_json = excluded.evaluation_json,
-                    updated_at = excluded.updated_at
-            """, (
-                base_name_with_page,
-                version_int,
-                lang,
-                out_mp3_name,
-                raw_text,
-                normalized_text,
-                overall_score,
-                round(float(eval_result.get("accuracy_score", 0.0))),
-                round(float(eval_result.get("fluency_score", 0.0))),
-                round(float(eval_result.get("completeness_score", 100.0))),
-                feedback,
-                evaluation_json_str,
-                created_at_str,
-                created_at_str
-            ))
-            conn.commit()
-            conn.close()
-            logger.info(f"Successfully saved evaluation to SQLite DB: {db_path}")
-        except Exception as db_err:
-            logger.error(f"Failed to save evaluation to SQLite DB: {db_err}")
-            
-        # Queue Background Task for Google Drive uploads
-        if settings.google_drive_folder_id:
-            if os.environ.get("VERCEL"):
-                logger.info("Running Google Drive assets upload inline (Vercel serverless environment).")
-                try:
-                    upload_eval_assets_to_drive(
-                        settings,
-                        payload,
-                        out_json_name,
-                        out_mp3_path,
-                        out_mp3_name
-                    )
-                except Exception as ex:
-                    logger.error(f"Inline Google Drive upload failed: {ex}")
-            else:
-                logger.info("Scheduling Google Drive assets upload background task.")
-                background_tasks.add_task(
-                    upload_eval_assets_to_drive,
-                    settings,
-                    payload,
-                    out_json_name,
-                    out_mp3_path,
-                    out_mp3_name
-                )
+        # SQLite / Google Drive integration removed
             
         # 5. Queue Background Webhook Task for Google Sheets Row Insertion
         # Disabled in favor of client-side Supabase insertion
@@ -666,73 +474,7 @@ async def api_evaluate(
             except Exception as remove_err:
                 logger.warning(f"Failed to cleanup temp WAV file: {remove_err}")
 
-@app.get("/api/db-history")
-def api_get_db_history():
-    """Lists all saved evaluation sessions in SQLite DB ordered by updated_at descending."""
-    db_path = get_db_path()
-    if not os.path.exists(db_path):
-        return []
-    
-    try:
-        import sqlite3
-        conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
-        
-        # Check if table exists
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='practice_sessions'")
-        if not cursor.fetchone():
-            conn.close()
-            return []
-            
-        cursor.execute("""
-            SELECT file_name, version, overall_score, updated_at, summary_feedback, language 
-            FROM practice_sessions 
-            WHERE evaluation_json IS NOT NULL AND evaluation_json != ''
-            ORDER BY updated_at DESC
-        """)
-        rows = cursor.fetchall()
-        conn.close()
-        
-        history = []
-        for r in rows:
-            history.append({
-                "file_name": r[0],
-                "version": r[1],
-                "overall_score": r[2] if r[2] is not None else 0,
-                "created_at": r[3],
-                "summary_feedback": r[4] or "",
-                "language": r[5] or "ja-JP"
-            })
-        return history
-    except Exception as e:
-        logger.error(f"Failed to query SQLite DB history: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to query DB history: {str(e)}")
 
-@app.get("/api/db-history/{file_name}/{version}")
-def api_get_db_history_detail(file_name: str, version: int):
-    """Retrieves full evaluation_json for a specific file_name and version from SQLite DB."""
-    db_path = get_db_path()
-    if not os.path.exists(db_path):
-        raise HTTPException(status_code=404, detail="DB file not found.")
-        
-    try:
-        import sqlite3
-        conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
-        cursor.execute("""
-            SELECT evaluation_json FROM practice_sessions 
-            WHERE file_name = ? AND version = ?
-        """, (file_name, version))
-        row = cursor.fetchone()
-        conn.close()
-        
-        if not row or not row[0]:
-            raise HTTPException(status_code=404, detail="Evaluation record or JSON not found.")
-            
-        return json.loads(row[0])
-    except Exception as e:
-        logger.error(f"Failed to read evaluation JSON from DB: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to read record from DB: {str(e)}")
 
 @app.get("/api/history")
 def api_get_history():
