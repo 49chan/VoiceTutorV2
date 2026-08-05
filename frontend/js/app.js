@@ -654,7 +654,15 @@ function restoreEvaluationFromData(data) {
     // 4. Audio loading
     if (data.audio_filename) {
         const player = document.getElementById("evaluation-audio-player");
-        player.src = `${BACKEND_URL}/api/history/audio/${data.audio_filename}`;
+        if (currentAudioUrl) {
+            player.src = currentAudioUrl;
+            const playBtn = document.getElementById("btn-play-local-audio");
+            if (playBtn) {
+                playBtn.classList.remove("hidden");
+            }
+        } else {
+            player.src = `${BACKEND_URL}/api/history/audio/${data.audio_filename}`;
+        }
     }
 }
 

@@ -8,8 +8,8 @@ def remove_spaces_between_cjk(text: str) -> str:
     if not text:
         return ""
     
-    # CJK character range pattern (Hiragana, Katakana, CJK Unified Ideographs / Kanji, Fullwidth Forms)
-    cjk_char_class = r'[\u3000-\u303f\u3040-\u309f\u30a0-\u30ff\uff00-\uffef\u4e00-\u9faf]'
+    # CJK character range pattern (Hiragana, Katakana, CJK Unified Ideographs / Kanji, Fullwidth Forms, Hangul Syllables/Jamo)
+    cjk_char_class = r'[\u3000-\u303f\u3040-\u309f\u30a0-\u30ff\uff00-\uffef\u4e00-\u9faf\uac00-\ud7a3\u3130-\u318f\u1100-\u11ff]'
     pattern = re.compile(f'({cjk_char_class})\\s+({cjk_char_class})')
     
     prev_text = ""
