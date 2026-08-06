@@ -1158,10 +1158,10 @@ async function submitAssessment() {
                     const session = sessionRes.data?.session;
                     const userId = session?.user?.id;
                     if (userId) {
-                        // 1. 동일 textbook에 대해 기존 최대 testcount 조회
+                        // 1. 동일 textbook에 대해 기존 최대 testcount 및 recordcount 조회
                         const { data: existingRecords, error: fetchError } = await supabaseClient
-                            .from('user_records')
-                            .select('testcount')
+                            .from('voice_records')
+                            .select('testcount, recordcount')
                             .eq('user_id', userId)
                             .eq('textbook', activeFilename)
                             .order('testcount', { ascending: false })
@@ -1170,18 +1170,21 @@ async function submitAssessment() {
                         if (fetchError) throw fetchError;
 
                         let nextTestCount = 1;
+                        let nextRecordCount = 1;
                         if (existingRecords && existingRecords.length > 0) {
                             nextTestCount = (existingRecords[0].testcount || 0) + 1;
+                            nextRecordCount = (existingRecords[0].recordcount || 0) + 1;
                         }
 
-                        // 2. user_records 테이블에 데이터 삽입 (소문자 스키마 사용, created_at/updated_at은 now() 자동 지정 생략)
+                        // 2. voice_records 테이블에 데이터 삽입 (소문자 스키마 사용, created_at/updated_at은 now() 자동 지정 생략)
                         const { error: insertError } = await supabaseClient
-                            .from('user_records')
+                            .from('voice_records')
                             .insert([{
                                 user_id: userId,
                                 record_type: 'test',
                                 textbook: activeFilename,
                                 testcount: nextTestCount,
+                                recordcount: nextRecordCount,
                                 score: Math.round(evalResult.overall_score),
                                 feedback: evalResult.summary_feedback,
                                 audio_filename: evalResult.audio_filename,
@@ -1194,7 +1197,7 @@ async function submitAssessment() {
                             }]);
 
                         if (insertError) throw insertError;
-                        console.log(`Supabase user_records 적재 성공! (textbook: ${activeFilename}, testcount: ${nextTestCount})`);
+                        console.log(`Supabase voice_records 적재 성공! (textbook: ${activeFilename}, testcount: ${nextTestCount})`);
                         
                         // Save recorded audio to local IndexedDB
                         if (recordedWavBlob) {
@@ -1204,7 +1207,7 @@ async function submitAssessment() {
                         console.warn("Supabase user_id를 찾을 수 없습니다. 로그인 상태를 확인하세요.");
                     }
                 } catch (supaErr) {
-                    console.error("Supabase user_records 적재 중 오류 발생:", supaErr);
+                    console.error("Supabase voice_records 적재 중 오류 발생:", supaErr);
                 }
             }
         } else {
@@ -1512,7 +1515,7 @@ async function showResultHistory() {
         const sortBy = sortFilter ? sortFilter.value : "recent";
         
         let query = supabaseClient
-            .from('user_records')
+            .from('voice_records')
             .select('textbook, testcount, score, created_at, feedback')
             .eq('user_id', userId);
             
@@ -1637,7 +1640,7 @@ async function loadDbHistory() {
             const userId = session?.user?.id;
             if (userId) {
                 const { data, error } = await supabaseClient
-                    .from('user_records')
+                    .from('voice_records')
                     .select('textbook, testcount, score, created_at, feedback, audio_filename, raw_text, overall_score, accuracy_score, fluency_score, completeness_score, evaluation_json')
                     .eq('user_id', userId)
                     .eq('record_type', 'test')
