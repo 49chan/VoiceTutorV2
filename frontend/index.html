@@ -424,14 +424,14 @@
                     </div>
 
                     <!-- Developer Local Test Checkbox & URL -->
-                    <div class="form-group" style="display: flex; flex-direction: column; background: rgba(255,255,255,0.02); padding: 12px; border-radius: 8px; border: 1px solid var(--border-light); margin-top: 15px; gap: 10px;">
+                    <div class="form-group" style="display: flex; flex-direction: column; background: rgba(255,255,255,0.02); padding: 12px; border-radius: 8px; border: 1px solid var(--border-light); margin-top: 15px; gap: 10px; opacity: 0.6;">
                         <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-                            <label class="form-label" for="setting-dev-local" style="margin-bottom: 0; cursor: pointer;">개발자 로컬테스트</label>
-                            <input type="checkbox" id="setting-dev-local" onchange="toggleDevLocalUrlField()" style="width: 20px; height: 20px; accent-color: var(--color-primary);">
+                            <label class="form-label" for="setting-dev-local" style="margin-bottom: 0; cursor: not-allowed; color: var(--text-muted);">개발자 로컬테스트 (비활성화)</label>
+                            <input type="checkbox" id="setting-dev-local" disabled style="width: 20px; height: 20px; accent-color: var(--color-primary); cursor: not-allowed;">
                         </div>
                         <div id="dev-local-url-container" style="display: none; flex-direction: column; gap: 4px;">
                             <span style="font-size: 0.72rem; color: var(--text-muted);">로컬 서버 URL (비워둘 시 127.0.0.1:8000 자동 지정)</span>
-                            <input type="text" id="setting-dev-local-url" class="form-input" placeholder="http://192.168.0.X:8000" style="background-color: var(--bg-secondary); font-size: 0.82rem;">
+                            <input type="text" id="setting-dev-local-url" disabled class="form-input" placeholder="http://192.168.0.X:8000" style="background-color: var(--bg-secondary); font-size: 0.82rem; cursor: not-allowed;">
                         </div>
                     </div>
 
