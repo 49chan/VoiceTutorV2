@@ -28,8 +28,8 @@
         <div class="screen-view" id="screen-landing">
             <header class="landing-header">
                 <div style="display: flex; align-items: center; gap: 12px;">
-                    <button class="btn-menu-trigger" onclick="toggleDrawer('menu', true)" style="background: none; border: none; color: var(--text-main); font-size: 1.25rem; cursor: pointer; display: flex; align-items: center; padding: 4px;">
-                        <i class="fa-solid fa-bars"></i>
+                    <button class="btn-menu-trigger" onclick="toggleDrawer('menu', true)" style="background: none; border: none; color: #8b5a2b; font-size: 1.25rem; cursor: pointer; display: flex; align-items: center; padding: 4px;">
+                        <i class="fa-solid fa-bars" style="color: #8b5a2b !important;"></i>
                     </button>
                     <span class="header-logo-text">VoiceTutor</span>
                 </div>
@@ -101,7 +101,7 @@
                     <button class="btn btn-nav-func disabled" id="btn-func-evaluate" onclick="submitAssessment()" disabled><i class="fa-solid fa-square-poll-vertical"></i> 평가</button>
                 </div>
                 <div class="header-right-indicator" style="display: flex; align-items: center;">
-                    <span id="recording-timer-countdown" class="timer-warning hidden" style="margin-right: 8px; font-weight: 600; color: var(--color-low); font-size: 0.9rem; display: flex; align-items: center; gap: 4px;"><i class="fa-regular fa-clock"></i> 1:30</span>
+                    <span id="recording-timer-countdown" class="timer-warning hidden" style="margin-right: 8px; font-weight: 600; color: var(--color-low); font-size: 0.9rem; display: flex; align-items: center; gap: 4px;"><i class="fa-regular fa-clock" style="color: #a855f7 !important;"></i> 1:30</span>
                     <div class="recording-status-indicator stopped" id="recording-status-indicator" title="녹음 상태 표시">
                         <i class="fa-solid fa-stop" id="icon-recording-status"></i>
                     </div>
@@ -166,7 +166,7 @@
             <!-- Bottom Settings / Exit Footer -->
             <footer class="practice-footer">
                 <button class="btn btn-footer-nav" id="btn-footer-settings" onclick="toggleDrawer('settings', true)">
-                    <i class="fa-solid fa-cog"></i> 설정
+                    <i class="fa-solid fa-cog" style="color: #8b5a2b !important;"></i> 설정
                 </button>
                 
                 <div class="status-indicator-dots">
@@ -176,7 +176,7 @@
 
                 <div style="display: flex; gap: 8px; align-items: center;">
                     <button class="btn btn-footer-nav" id="btn-footer-history" onclick="showResultHistory()">
-                        <i class="fa-solid fa-clock-rotate-left"></i> 결과이력
+                        <i class="fa-solid fa-clock-rotate-left" style="color: #a855f7 !important;"></i> 결과이력
                     </button>
 
                     <button class="btn btn-footer-nav" id="btn-footer-exit" onclick="exitPracticeRoom()">
@@ -199,7 +199,7 @@
             <div class="drawer-card" style="max-height: 90vh; max-width: 320px; align-self: flex-start; height: 100%; border-radius: 0 20px 20px 0; border-right: 1px solid var(--border-light); border-top: none; border-bottom: none; animation: slideRight 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards; position: absolute; left: 0; top: 0; bottom: 0;">
                 <header class="drawer-header" style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 15px; border-bottom: 1px solid var(--border-light);">
                     <div style="display: flex; align-items: center; gap: 8px;">
-                        <i class="fa-solid fa-wave-square" style="color: var(--color-primary);"></i>
+                        <i class="fa-solid fa-wave-square" style="color: #8b5a2b !important;"></i>
                         <span style="font-weight: 700; font-size: 1.1rem; letter-spacing: -0.01em;">Voice Tutor 메뉴</span>
                     </div>
                     <button class="btn-close-drawer" onclick="toggleDrawer('menu', false)" style="background: none; border: none; font-size: 1.5rem; color: var(--text-muted); cursor: pointer; display: flex; align-items: center; justify-content: center; width: 30px; height: 30px;">&times;</button>
@@ -213,7 +213,7 @@
                     </button>
                     <div style="height: 1px; background: var(--border-light); margin: 8px 0;"></div>
                     <button class="btn btn-menu-item" onclick="toggleDrawer('menu', false); toggleDrawer('settings', true)" style="justify-content: flex-start; padding: 12px; width: 100%; border: none; background: transparent; text-align: left; font-size: 0.95rem;">
-                        <i class="fa-solid fa-gear" style="width: 20px; color: #f59e0b; font-size: 1rem;"></i> 설정
+                        <i class="fa-solid fa-gear" style="width: 20px; color: #8b5a2b !important; font-size: 1rem;"></i> 설정
                     </button>
                     <div id="menu-login-info-container" style="margin-top: 4px;">
                         <!-- Dynamic Profile/Login Info will be injected here -->
@@ -446,13 +446,13 @@
         <div class="drawer-overlay hidden" id="drawer-history">
             <div class="drawer-card" style="max-height: 90vh;">
                 <header class="drawer-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-light); padding-bottom: 12px; margin-bottom: 16px;">
-                    <h3><i class="fa-solid fa-clock-rotate-left"></i> 결과이력</h3>
+                    <h3 style="color: #a855f7;"><i class="fa-solid fa-clock-rotate-left" style="color: #a855f7;"></i> 결과이력</h3>
                     <div style="display: flex; align-items: center; gap: 15px; margin-left: auto; margin-right: 15px;">
-                        <span style="font-size: 0.8rem; font-weight: 700; color: var(--text-muted); white-space: nowrap;">조회조건</span>
-                        <select id="history-sort-filter" onchange="showResultHistory()" style="background-color: var(--bg-secondary); border: 1px solid var(--border-light); color: var(--text-main); font-size: 0.82rem; border-radius: 6px; padding: 4px 8px; outline: none; cursor: pointer; max-width: 120px;">
-                            <option value="recent">최근일자순</option>
-                            <option value="score_desc">높은점수순</option>
-                            <option value="score_asc">낮은점수순</option>
+                        <span style="font-size: 0.8rem; font-weight: 700; color: #3b82f6; white-space: nowrap;">조회조건</span>
+                        <select id="history-sort-filter" onchange="showResultHistory()" style="background-color: #fef08a; border: 1px solid var(--border-light); color: #000000; font-size: 0.82rem; border-radius: 6px; padding: 4px 8px; outline: none; cursor: pointer; max-width: 120px;">
+                            <option value="recent" style="background-color: #fef08a; color: #000000;">최근일자순</option>
+                            <option value="score_desc" style="background-color: #fef08a; color: #000000;">높은점수순</option>
+                            <option value="score_asc" style="background-color: #fef08a; color: #000000;">낮은점수순</option>
                         </select>
                     </div>
                     <button class="btn-close-drawer" onclick="toggleDrawer('history', false)">&times;</button>
