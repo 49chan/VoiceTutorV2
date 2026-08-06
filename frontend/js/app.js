@@ -839,7 +839,7 @@ async function saveEditedText(silent = false) {
         if (defaultName === "새텍스트") {
             defaultName = "";
         }
-        let userFilename = prompt("저장할 파일명을 입력해 주세요:", defaultName);
+        let userFilename = await showPrompt("저장할 파일명을 입력해 주세요:", defaultName);
         if (userFilename === null) {
             return; // Cancelled
         }
@@ -1158,10 +1158,10 @@ async function submitAssessment() {
                     const session = sessionRes.data?.session;
                     const userId = session?.user?.id;
                     if (userId) {
-                        // 1. 동일 textbook에 대해 기존 최대 testcount 및 recordcount 조회
+                        // 1. 동일 textbook에 대해 기존 최대 testcount 조회
                         const { data: existingRecords, error: fetchError } = await supabaseClient
                             .from('voice_records')
-                            .select('testcount, recordcount')
+                            .select('testcount')
                             .eq('user_id', userId)
                             .eq('textbook', activeFilename)
                             .order('testcount', { ascending: false })
@@ -1170,11 +1170,20 @@ async function submitAssessment() {
                         if (fetchError) throw fetchError;
 
                         let nextTestCount = 1;
-                        let nextRecordCount = 1;
                         if (existingRecords && existingRecords.length > 0) {
                             nextTestCount = (existingRecords[0].testcount || 0) + 1;
-                            nextRecordCount = (existingRecords[0].recordcount || 0) + 1;
                         }
+
+                        // 2. user_id의 'testcount' 총합(전체 평가 레코드 수) 조회
+                        const { count: totalCount, error: countError } = await supabaseClient
+                            .from('voice_records')
+                            .select('*', { count: 'exact', head: true })
+                            .eq('user_id', userId)
+                            .eq('record_type', 'test');
+
+                        if (countError) throw countError;
+
+                        const nextRecordCount = (totalCount || 0) + 1;
 
                         // 2. voice_records 테이블에 데이터 삽입 (소문자 스키마 사용, created_at/updated_at은 now() 자동 지정 생략)
                         const { error: insertError } = await supabaseClient
@@ -1836,7 +1845,7 @@ async function loadDbEvaluationDetail(item) {
 // ==========================================
 // CUSTOM POPUP MODAL IMPLEMENTATION
 // ==========================================
-function showCustomPopup({ title, message, type = 'info', confirmText = '확인', cancelText = '취소', showCancel = false }) {
+function showCustomPopup({ title, message, type = 'info', confirmText = '확인', cancelText = '취소', showCancel = false, showPrompt = false, defaultValue = '' }) {
     return new Promise((resolve) => {
         const modal = document.getElementById('custom-popup-modal');
         const modalContent = modal.querySelector('.custom-modal-content');
@@ -1845,6 +1854,8 @@ function showCustomPopup({ title, message, type = 'info', confirmText = '확인'
         const iconSymbol = document.getElementById('modal-icon-symbol');
         const confirmBtn = document.getElementById('modal-btn-confirm');
         const cancelBtn = document.getElementById('modal-btn-cancel');
+        const promptContainer = document.getElementById('modal-prompt-input-container');
+        const promptInput = document.getElementById('modal-prompt-input');
 
         // Reset theme classes on modal content
         modalContent.className = 'custom-modal-content ' + type;
@@ -1863,15 +1874,18 @@ function showCustomPopup({ title, message, type = 'info', confirmText = '확인'
             iconSymbol.textContent = 'i';
         }
 
+        // Handle Prompt input
+        if (showPrompt && promptContainer && promptInput) {
+            promptContainer.classList.remove('hidden');
+            promptInput.value = defaultValue;
+            setTimeout(() => promptInput.focus(), 50);
+        } else if (promptContainer) {
+            promptContainer.classList.add('hidden');
+        }
+
         // Set buttons text & visibility
         confirmBtn.className = 'modal-btn btn-confirm';
-        if (type === 'warning') {
-            confirmBtn.textContent = confirmText;
-        } else if (type === 'danger') {
-            confirmBtn.textContent = confirmText;
-        } else {
-            confirmBtn.textContent = confirmText;
-        }
+        confirmBtn.textContent = confirmText;
         
         if (showCancel) {
             cancelBtn.textContent = cancelText;
@@ -1883,12 +1897,20 @@ function showCustomPopup({ title, message, type = 'info', confirmText = '확인'
         // Set up event listeners
         confirmBtn.onclick = () => {
             modal.classList.add('hidden');
-            resolve(true);
+            if (showPrompt && promptInput) {
+                resolve(promptInput.value);
+            } else {
+                resolve(true);
+            }
         };
 
         cancelBtn.onclick = () => {
             modal.classList.add('hidden');
-            resolve(false);
+            if (showPrompt) {
+                resolve(null);
+            } else {
+                resolve(false);
+            }
         };
 
         // Show the modal
@@ -1896,7 +1918,7 @@ function showCustomPopup({ title, message, type = 'info', confirmText = '확인'
     });
 }
 
-// Global alert/confirm replacements
+// Global alert/confirm/prompt replacements
 async function showAlert(message, type = 'info') {
     let title = '안내드립니다';
     if (type === 'warning') title = '잠깐만요!';
@@ -1920,6 +1942,19 @@ async function showConfirm(message, type = 'warning') {
         confirmText: '계속하기',
         cancelText: '취소',
         showCancel: true
+    });
+}
+
+async function showPrompt(message, defaultValue = '', type = 'info') {
+    return await showCustomPopup({
+        title: '입력해 주세요',
+        message: message,
+        type: type,
+        confirmText: '확인',
+        cancelText: '취소',
+        showCancel: true,
+        showPrompt: true,
+        defaultValue: defaultValue
     });
 }
 
